@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Checkout · Flash Studio{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row g-4">
+    
+    <!-- Checkout Form -->
+    <div class="col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-header bg-white">
+          <h2 class="h4 mb-0">
+            <i class="bi bi-truck me-2"></i>
+            Shipping Information
+          </h2>
+        </div>
+        <div class="card-body">
+          
+          {% if current_user %}
+            <div class="alert alert-info d-flex align-items-center mb-4">
+              <i class="bi bi-info-circle me-2"></i>
+              <div>
+                <strong>Hello, {{ current_user.email.split('@')[0]|title }}!</strong> 
+                Your information has been pre-filled below.
+              </div>
+            </div>
+          {% else %}
+            <div class="alert alert-light d-flex align-items-center mb-4">
+              <i class="bi bi-person me-2"></i>
+              <div>
+                <strong>Checking out as guest?</strong> 
+                <a href="{{ url_for('auth.auth') }}" class="alert-link">Sign in</a> for faster checkout.
+              </div>
+            </div>
+          {% endif %}
+
+          <form method="post" class="checkout-form" novalidate>
+            <div class="row g-3">
+              
+              <div class="col-12">
+                <label for="name" class="form-label fw-semibold">Full Name *</label>
+                <input type="text" 
+                       class="form-control" 
+                       id="name" 
+                       name="name" 
+                       value="{{ name or '' }}"
+                       required 
+                       placeholder="Enter your full name">
+                <div class="invalid-feedback">Please provide your full name.</div>
+              </div>
+
+              <div class="col-md-8">
+                <label for="email" class="form-label fw-semibold">Email Address *</label>
+                <input type="email" 
+                       class="form-control" 
+                       id="email" 
+                       name="email" 
+                       value="{{ email or '' }}"
+                       required 
+                       placeholder="you@example.com">
+                <div class="invalid-feedback">Please provide a valid email address.</div>
+                <div class="form-text">Order confirmation will be sent to this email.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label for="phone" class="form-label fw-semibold">Phone Number</label>
+                <input type="tel" 
+                       class="form-control" 
+                       id="phone" 
+                       name="phone" 
+                       value="{{ phone or '' }}"
+                       placeholder="+65 9XXX XXXX">
+                <div class="form-text">Optional</div>
+              </div>
+
+              <div class="col-12">
+                <label for="address" class="form-label fw-semibold">Shipping Address *</label>
+                <textarea class="form-control" 
+                          id="address" 
+                          name="address" 
+                          rows="4" 
+                          required 
+                          placeholder="Enter your complete shipping address&#10;Include postal code and country">{{ address or '' }}</textarea>
+                <div class="invalid-feedback">Please provide your shipping address.</div>
+              </div>
+
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="terms" required>
+                  <label class="form-check-label" for="terms">
+                    I agree to the <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Privacy Policy</a> *
+                  </label>
+                  <div class="invalid-feedback">You must agree to the terms.</div>
+                </div>
+              </div>
+
+            </div>
+
+            <hr class="my-4">
+
+            <div class="d-flex justify-content-between align-items-center">
+              <a href="{{ url_for('public.cart') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back to Cart
+              </a>
+              
+              <button class="btn btn-primary btn-lg px-4" type="submit">
+                <i class="bi bi-credit-card me-2"></i>
+                Place Order (S$ {{ '%.2f' % (total / 100.0) }})
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Order Summary -->
+    <div class="col-lg-5">
+      <div class="card shadow-sm">
+        <div class="card-header bg-white">
+          <h3 class="h5 mb-0">
+            <i class="bi bi-receipt me-2"></i>
+            Order Summary
+          </h3>
+        </div>
+        <div class="card-body">
+          
+          <div class="order-items mb-3">
+            {% for item in items %}
+              <div class="d-flex align-items-center mb-3 pb-3 {% if not loop.last %}border-bottom{% endif %}">
+                {% if item.image %}
+                  <img src="{{ url_for('static', filename='uploads/' ~ item.image) }}" 
+                       alt="{{ item.title }}" 
+                       class="rounded me-3"
+                       style="width: 60px; height: 60px; object-fit: cover;">
+                {% else %}
+                  <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" 
+                       style="width: 60px; height: 60px;">
+                    <i class="bi bi-image text-muted"></i>
+                  </div>
+                {% endif %}
+                
+                <div class="flex-grow-1">
+                  <h6 class="mb-1">{{ item.title }}</h6>
+                  <small class="text-muted">{{ item.size }} · {{ item.frame }}</small>
+                  <div class="small">Qty: {{ item.qty }}</div>
+                </div>
+                
+                <div class="text-end">
+                  <div class="fw-semibold">S$ {{ '%.2f' % (item.subtotal_cents / 100.0) }}</div>
+                  <small class="text-muted">S$ {{ '%.2f' % (item.unit_price_cents / 100.0) }} each</small>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="border-top pt-3">
+            <div class="d-flex justify-content-between mb-2">
+              <span>Subtotal:</span>
+              <span>S$ {{ '%.2f' % (total / 100.0) }}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+              <span>Shipping:</span>
+              <span class="text-success">FREE</span>
+            </div>
+            <hr class="my-2">
+            <div class="d-flex justify-content-between fs-5 fw-bold">
+              <span>Total:</span>
+              <span>S$ {{ '%.2f' % (total / 100.0) }}</span>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <small class="text-muted">
+              <i class="bi bi-shield-check me-1"></i>
+              Secure checkout powered by SSL encryption
+            </small>
+          </div>
+
+        </div>
+      </div>
+      
+      <!-- Security Info -->
+      <div class="mt-3 text-center">
+        <small class="text-muted">
+          <i class="bi bi-truck me-1"></i>
+          Free shipping on all orders • 
+          <i class="bi bi-arrow-clockwise me-1"></i>
+          30-day return policy
+        </small>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.querySelector('.checkout-form');
+  
+  // Add Bootstrap validation
+  form.addEventListener('submit', function(e) {
+    if (!form.checkValidity()) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    form.classList.add('was-validated');
+  });
+  
+  // Real-time validation feedback
+  const inputs = form.querySelectorAll('input, textarea');
+  inputs.forEach(input => {
+    input.addEventListener('blur', function() {
+      if (this.checkValidity()) {
+        this.classList.remove('is-invalid');
+        this.classList.add('is-valid');
+      } else {
+        this.classList.remove('is-valid');
+        this.classList.add('is-invalid');
+      }
+    });
+  });
+});
+</script>
+
+{% endblock %}

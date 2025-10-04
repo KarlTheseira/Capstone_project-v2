@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}Contact Us - Flash Digital Studio{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row">
+    <div class="col-lg-8 mx-auto">
+      <div class="text-center mb-5">
+        <h1 class="display-5 fw-bold text-primary">Get In Touch</h1>
+        <p class="lead text-muted">Ready to bring your vision to life? We'd love to hear about your project and provide you with a personalized solution.</p>
+      </div>
+
+      <div class="row">
+        <!-- Contact Form -->
+        <div class="col-lg-8">
+          <div class="card shadow border-0">
+            <div class="card-header bg-primary text-white">
+              <h4 class="mb-0"><i class="bi bi-envelope-fill me-2"></i>Send us a Message</h4>
+            </div>
+            <div class="card-body p-4">
+              <form method="POST" action="{{ url_for('public.contact') }}">
+                <div class="row g-3">
+                  <!-- Contact Information -->
+                  <div class="col-12">
+                    <h6 class="fw-bold text-muted mb-3">Your Information</h6>
+                  </div>
+                  
+                  <div class="col-md-6">
+                    <label for="name" class="form-label">Full Name *</label>
+                    <input type="text" class="form-control" id="name" name="name" 
+                           value="{{ form_data.name if form_data else '' }}" required>
+                  </div>
+                  
+                  <div class="col-md-6">
+                    <label for="email" class="form-label">Email Address *</label>
+                    <input type="email" class="form-control" id="email" name="email" 
+                           value="{{ form_data.email if form_data else '' }}" required>
+                  </div>
+                  
+                  <div class="col-md-6">
+                    <label for="phone" class="form-label">Phone Number</label>
+                    <input type="tel" class="form-control" id="phone" name="phone" 
+                           value="{{ form_data.phone if form_data else '' }}">
+                  </div>
+                  
+                  <div class="col-md-6">
+                    <label for="company" class="form-label">Company/Organization</label>
+                    <input type="text" class="form-control" id="company" name="company" 
+                           value="{{ form_data.company if form_data else '' }}">
+                  </div>
+
+                  <!-- Inquiry Type -->
+                  <div class="col-12 mt-4">
+                    <h6 class="fw-bold text-muted mb-3">How Can We Help?</h6>
+                  </div>
+                  
+                  <div class="col-12">
+                    <label for="inquiry_type" class="form-label">Type of Inquiry</label>
+                    <select class="form-select" id="inquiry_type" name="inquiry_type">
+                      <option value="General">General Inquiry</option>
+                      <option value="Quote Request">Quote Request</option>
+                      {% for category in categories %}
+                      <option value="{{ category }}" 
+                              {% if form_data and form_data.inquiry_type == category %}selected{% endif %}>
+                        {{ category }}
+                      </option>
+                      {% endfor %}
+                      <option value="Portfolio Question">Portfolio Question</option>
+                      <option value="Technical Support">Technical Support</option>
+                      <option value="Partnership">Partnership Opportunity</option>
+                    </select>
+                  </div>
+                  
+                  <div class="col-12">
+                    <label for="message" class="form-label">Message *</label>
+                    <textarea class="form-control" id="message" name="message" rows="5" 
+                              placeholder="Tell us about your project, questions, or how we can help..." required>{{ form_data.message if form_data else '' }}</textarea>
+                  </div>
+
+                  <div class="col-12 mt-4">
+                    <div class="d-grid">
+                      <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-send-fill me-2"></i>Send Message
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact Information -->
+        <div class="col-lg-4">
+          <div class="card border-0 bg-light h-100">
+            <div class="card-body p-4">
+              <h5 class="fw-bold mb-4">Contact Information</h5>
+              
+              <div class="mb-4">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-geo-alt-fill text-primary me-3"></i>
+                  <strong>Visit Our Studio</strong>
+                </div>
+                <p class="text-muted ms-4 mb-0">
+                  123 Creative District<br>
+                  Downtown, Singapore 123456
+                </p>
+              </div>
+
+              <div class="mb-4">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-phone-fill text-primary me-3"></i>
+                  <strong>Call Us</strong>
+                </div>
+                <p class="text-muted ms-4 mb-0">
+                  <a href="tel:+65-1234-5678" class="text-decoration-none">+65 1234 5678</a>
+                </p>
+              </div>
+
+              <div class="mb-4">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-envelope-fill text-primary me-3"></i>
+                  <strong>Email Us</strong>
+                </div>
+                <p class="text-muted ms-4 mb-0">
+                  <a href="mailto:info@flashdigitalstudio.com" class="text-decoration-none">info@flashdigitalstudio.com</a>
+                </p>
+              </div>
+
+              <div class="mb-4">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-clock-fill text-primary me-3"></i>
+                  <strong>Business Hours</strong>
+                </div>
+                <div class="text-muted ms-4">
+                  <div>Mon - Fri: 9:00 AM - 6:00 PM</div>
+                  <div>Sat: 10:00 AM - 4:00 PM</div>
+                  <div>Sun: By appointment</div>
+                </div>
+              </div>
+
+              <hr>
+
+              <h6 class="fw-bold mb-3">Quick Actions</h6>
+              <div class="d-grid gap-2">
+                <a href="{{ url_for('public.request_quote') }}" class="btn btn-outline-primary">
+                  <i class="bi bi-file-text me-2"></i>Request Quote
+                </a>
+                <a href="{{ url_for('public.booking_calendar') }}" class="btn btn-outline-success">
+                  <i class="bi bi-calendar-plus me-2"></i>Book Consultation
+                </a>
+                <a href="{{ url_for('public.portfolio') }}" class="btn btn-outline-info">
+                  <i class="bi bi-images me-2"></i>View Portfolio
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FAQ Section -->
+<section class="bg-light py-5 mt-5">
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 mx-auto">
+        <h2 class="text-center mb-5">Frequently Asked Questions</h2>
+        
+        <div class="accordion" id="contactFAQ">
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                How quickly do you respond to inquiries?
+              </button>
+            </h2>
+            <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#contactFAQ">
+              <div class="accordion-body">
+                We typically respond to all inquiries within 24 hours during business days. For urgent requests, feel free to call us directly.
+              </div>
+            </div>
+          </div>
+          
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                Do you offer free consultations?
+              </button>
+            </h2>
+            <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#contactFAQ">
+              <div class="accordion-body">
+                Yes! We offer complimentary 30-minute consultations to discuss your project needs and provide initial recommendations.
+              </div>
+            </div>
+          </div>
+          
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                What information should I include in my inquiry?
+              </button>
+            </h2>
+            <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#contactFAQ">
+              <div class="accordion-body">
+                The more details you can provide, the better! Include your event date, location, type of service needed, budget range, and any specific requirements or vision you have.
+              </div>
+            </div>
+          </div>
+          
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
+                Do you travel for projects?
+              </button>
+            </h2>
+            <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#contactFAQ">
+              <div class="accordion-body">
+                Absolutely! We serve clients throughout Singapore and are available for destination projects. Travel fees may apply for locations outside our standard service area.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Orders · Flash Studio{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Orders</h1>
+<table class="table table-striped align-middle">
+  <thead>
+    <tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th><th class="text-end">Actions</th></tr>
+  </thead>
+  <tbody>
+    {% for o in orders %}
+      <tr>
+        <td>#{{ o.id }}</td>
+        <td>{{ o.customer_email }}</td>
+        <td>{{ o.total_display }}</td>
+        <td>
+          <span class="badge text-bg-{{ 'success' if o.status=='paid' else 'warning' if o.status=='pending' else 'secondary' }}">
+            {{ o.status|title }}
+          </span>
+        </td>
+        <td>{{ o.created_at.strftime('%Y-%m-%d %H:%M') if o.created_at else '' }}</td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.order_detail', order_id=o.id) }}">View</a>
+        </td>
+      </tr>
+    {% else %}
+      <tr>
+        <td colspan="6" class="text-center text-muted py-4">
+          No orders found.
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

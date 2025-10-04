@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard · Flash Studio{% endblock %}
+
+{% block content %}
+<!-- Dashboard Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h2 mb-0">Analytics Dashboard</h1>
+    <p class="text-muted">Welcome back! Here's what's happening with your business.</p>
+  </div>
+  
+  <div class="d-flex gap-2">
+    <!-- Date Range Filter -->
+    <select class="form-select" id="dateRangeFilter" onchange="updateDashboard()">
+      <option value="7" {{ 'selected' if selected_range == 7 }}>Last 7 days</option>
+      <option value="30" {{ 'selected' if selected_range == 30 }}>Last 30 days</option>
+      <option value="90" {{ 'selected' if selected_range == 90 }}>Last 90 days</option>
+      <option value="365" {{ 'selected' if selected_range == 365 }}>Last year</option>
+    </select>
+    
+    <!-- Quick Actions -->
+    <div class="btn-group">
+      <a class="btn btn-outline-primary" href="{{ url_for('admin.quotes') }}">
+        <i class="bi bi-file-text me-1"></i>Quotes
+      </a>
+      <a class="btn btn-outline-success" href="{{ url_for('admin.bookings') }}">
+        <i class="bi bi-calendar-check me-1"></i>Bookings
+      </a>
+      <a class="btn btn-outline-info" href="{{ url_for('admin.service_packages') }}">
+        <i class="bi bi-box-seam me-1"></i>Packages
+      </a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('admin.customization_options') }}">
+        <i class="bi bi-sliders me-1"></i>Options
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Key Metrics Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="flex-shrink-0">
+            <div class="rounded-circle bg-success bg-opacity-10 p-3">
+              <i class="bi bi-currency-dollar text-success fs-4"></i>
+            </div>
+          </div>
+          <div class="flex-grow-1 ms-3">
+            <h6 class="card-title text-muted mb-1">Total Revenue</h6>
+            <h4 class="mb-0">${{ "%.2f"|format(analytics.total_revenue) }}</h4>
+            <small class="text-success">
+              <i class="bi bi-arrow-up me-1"></i>
+              ${{ "%.2f"|format(analytics.period_revenue) }} this period
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="flex-shrink-0">
+            <div class="rounded-circle bg-primary bg-opacity-10 p-3">
+              <i class="bi bi-file-text text-primary fs-4"></i>
+            </div>
+          </div>
+          <div class="flex-grow-1 ms-3">
+            <h6 class="card-title text-muted mb-1">Quote Requests</h6>
+            <h4 class="mb-0">{{ analytics.total_quotes }}</h4>
+            <small class="text-primary">
+              {{ analytics.pending_quotes }} pending
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="flex-shrink-0">
+            <div class="rounded-circle bg-info bg-opacity-10 p-3">
+              <i class="bi bi-calendar-check text-info fs-4"></i>
+            </div>
+          </div>
+          <div class="flex-grow-1 ms-3">
+            <h6 class="card-title text-muted mb-1">Bookings</h6>
+            <h4 class="mb-0">{{ analytics.total_bookings }}</h4>
+            <small class="text-info">
+              {{ analytics.confirmed_bookings }} confirmed
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="flex-shrink-0">
+            <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+              <i class="bi bi-graph-up text-warning fs-4"></i>
+            </div>
+          </div>
+          <div class="flex-grow-1 ms-3">
+            <h6 class="card-title text-muted mb-1">Conversion Rate</h6>
+            <h4 class="mb-0">{{ analytics.conversion_rate }}%</h4>
+            <small class="text-muted">
+              Avg: ${{ analytics.avg_quote_value }}
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-4">
+  <!-- Revenue Trend Chart -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-transparent border-0 pb-0">
+        <div class="d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0">Revenue Trend</h5>
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+              <i class="bi bi-download me-1"></i>Export
+            </button>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="{{ url_for('admin.export_analytics', type='dashboard', range=selected_range) }}">
+                <i class="bi bi-file-earmark-csv me-2"></i>Dashboard CSV
+              </a></li>
+              <li><a class="dropdown-item" href="{{ url_for('admin.export_analytics', type='quotes', range=selected_range) }}">
+                <i class="bi bi-file-earmark-text me-2"></i>Quotes CSV
+              </a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="card-body pt-2">
+        <canvas id="revenueChart" height="100"></canvas>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Service Popularity Chart -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-transparent border-0 pb-0">
+        <h5 class="card-title mb-0">Popular Services</h5>
+      </div>
+      <div class="card-body pt-2">
+        <canvas id="servicesChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detailed Analytics Row -->
+<div class="row g-3 mb-4">
+  <!-- Conversion Funnel -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="card-title mb-0">Quote Conversion Funnel</h5>
+      </div>
+      <div class="card-body">
+        <div class="funnel-step mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span>Total Requests</span>
+            <span class="badge bg-secondary">{{ conversion_funnel.total }}</span>
+          </div>
+          <div class="progress" style="height: 8px;">
+            <div class="progress-bar bg-secondary" style="width: 100%"></div>
+          </div>
+        </div>
+        
+        <div class="funnel-step mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span>Responded</span>
+            <span class="badge bg-primary">{{ conversion_funnel.responded }}</span>
+          </div>
+          <div class="progress" style="height: 8px;">
+            <div class="progress-bar bg-primary" style="width: {{ (conversion_funnel.responded / conversion_funnel.total * 100) if conversion_funnel.total > 0 else 0 }}%"></div>
+          </div>
+        </div>
+        
+        <div class="funnel-step mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span>Quoted</span>
+            <span class="badge bg-success">{{ conversion_funnel.quoted }}</span>
+          </div>
+          <div class="progress" style="height: 8px;">
+            <div class="progress-bar bg-success" style="width: {{ (conversion_funnel.quoted / conversion_funnel.total * 100) if conversion_funnel.total > 0 else 0 }}%"></div>
+          </div>
+        </div>
+        
+        <div class="funnel-step">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span>Closed</span>
+            <span class="badge bg-warning">{{ conversion_funnel.closed }}</span>
+          </div>
+          <div class="progress" style="height: 8px;">
+            <div class="progress-bar bg-warning" style="width: {{ (conversion_funnel.closed / conversion_funnel.total * 100) if conversion_funnel.total > 0 else 0 }}%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Recent Activities -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="card-title mb-0">Recent Activities</h5>
+      </div>
+      <div class="card-body">
+        <div class="list-group list-group-flush">
+          {% for activity in recent_activities %}
+          <div class="list-group-item border-0 px-0">
+            <div class="d-flex align-items-start">
+              <div class="flex-shrink-0 me-3">
+                {% if activity.type == 'quote' %}
+                  <i class="bi bi-file-text text-primary"></i>
+                {% elif activity.type == 'booking' %}
+                  <i class="bi bi-calendar-check text-success"></i>
+                {% endif %}
+              </div>
+              <div class="flex-grow-1">
+                <p class="mb-1 small">{{ activity.message }}</p>
+                <small class="text-muted">{{ activity.timestamp.strftime('%b %d, %Y at %I:%M %p') }}</small>
+                <span class="badge bg-{{ 'success' if activity.status == 'confirmed' else 'warning' if activity.status == 'pending' else 'secondary' }} ms-2">
+                  {{ activity.status }}
+                </span>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Stats Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h6 class="card-title">Booking Insights</h6>
+        <div class="row text-center">
+          <div class="col-6">
+            <h4 class="text-info mb-0">{{ booking_analytics.upcoming_bookings }}</h4>
+            <small class="text-muted">Upcoming</small>
+          </div>
+          <div class="col-6">
+            <h4 class="text-success mb-0">{{ booking_analytics.month_bookings }}</h4>
+            <small class="text-muted">This Month</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h6 class="card-title">Popular Booking Days</h6>
+        <div class="d-flex justify-content-between">
+          {% for day_data in booking_analytics.popular_days %}
+          <div class="text-center flex-fill">
+            <div class="small text-muted">{{ day_data.day[:3] }}</div>
+            <div class="fs-6 fw-bold">{{ day_data.count }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Product Management Section -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent border-0">
+    <div class="d-flex justify-content-between align-items-center">
+      <h5 class="card-title mb-0">Product Management</h5>
+      <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newProductForm">
+        <i class="bi bi-plus-lg me-1"></i>Add Product
+      </button>
+    </div>
+  </div>
+  
+  <div class="collapse" id="newProductForm">
+    <div class="card-body border-top">
+      <form method="post" action="{{ url_for('admin.dashboard') }}" enctype="multipart/form-data">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Title</label>
+            <input class="form-control" name="title" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Price ($)</label>
+            <input class="form-control" name="price" type="number" step="0.01" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Stock</label>
+            <input class="form-control" name="stock" type="number" value="0" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Category</label>
+            <select class="form-select" name="category">
+              <option value="">Select category</option>
+              {% for category in categories %}
+              <option value="{{ category }}">{{ category }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Media File</label>
+            <input class="form-control" name="media" type="file" accept="image/*,video/*" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Thumbnail (optional)</label>
+            <input class="form-control" name="thumbnail" type="file" accept="image/*">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Description</label>
+            <textarea class="form-control" name="description" rows="3"></textarea>
+          </div>
+          <div class="col-12">
+            <button class="btn btn-primary" type="submit">Add Product</button>
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#newProductForm">Cancel</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Products Table (Simplified) -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-transparent border-0">
+    <h5 class="card-title mb-0">Recent Products</h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Product</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Stock</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in products[:5] %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center">
+                <img src="{{ url_for('static', filename='images/placeholder.jpg') }}" 
+                     alt="{{ product.title }}" 
+                     class="rounded me-3" 
+                     style="width: 40px; height: 40px; object-fit: cover;">
+                <div>
+                  <div class="fw-medium">{{ product.title }}</div>
+                  <small class="text-muted">{{ product.created_at.strftime('%b %d, %Y') }}</small>
+                </div>
+              </div>
+            </td>
+            <td>
+              {% if product.category %}
+                <span class="badge bg-light text-dark">{{ product.category }}</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>${{ "%.2f"|format(product.price_cents / 100) }}</td>
+            <td>
+              <span class="badge bg-{{ 'success' if product.stock > 0 else 'warning' }}">
+                {{ product.stock }}
+              </span>
+            </td>
+            <td>
+              <div class="btn-group btn-group-sm">
+                <a href="{{ url_for('public.product', product_id=product.id) }}" class="btn btn-outline-primary btn-sm" title="View Product">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <a href="{{ url_for('admin.edit_product', product_id=product.id) }}" class="btn btn-outline-secondary btn-sm" title="Edit Product">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <form method="post" action="{{ url_for('admin.delete', product_id=product.id) }}" class="d-inline">
+                  <button class="btn btn-outline-danger btn-sm" type="submit" 
+                          onclick="return confirm('Delete this product?')" title="Delete Product">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Revenue Trend Chart
+const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+const revenueChart = new Chart(revenueCtx, {
+    type: 'line',
+    data: {
+        labels: {{ revenue_trend | map(attribute='month') | list | tojson }},
+        datasets: [{
+            label: 'Revenue ($)',
+            data: {{ revenue_trend | map(attribute='revenue') | list | tojson }},
+            borderColor: '#ff9800',
+            backgroundColor: 'rgba(255, 152, 0, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Service Popularity Chart
+const servicesCtx = document.getElementById('servicesChart').getContext('2d');
+const servicesChart = new Chart(servicesCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ service_popularity | map(attribute='service') | list | tojson }},
+        datasets: [{
+            data: {{ service_popularity | map(attribute='count') | list | tojson }},
+            backgroundColor: [
+                '#ff9800', '#2196f3', '#4caf50', '#f44336', 
+                '#9c27b0', '#ff5722', '#795548', '#607d8b'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    boxWidth: 12,
+                    padding: 10,
+                    font: {
+                        size: 11
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Update dashboard function
+function updateDashboard() {
+    const range = document.getElementById('dateRangeFilter').value;
+    window.location.href = `{{ url_for('admin.dashboard') }}?range=${range}`;
+}
+
+// Auto-refresh every 5 minutes
+setTimeout(() => {
+    location.reload();
+}, 300000);
+</script>
+
+<style>
+.funnel-step .progress {
+    border-radius: 10px;
+}
+
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.list-group-item:last-child {
+    border-bottom: none !important;
+}
+</style>
+
+{% if error %}
+  <div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+{% endblock %}

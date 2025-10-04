@@ -1,0 +1,342 @@
+"""
+Enhanced Azure Blob Storage utilities for FlashStudio
+Provides robust file management, error handling, and production features
+"""
+import os
+import uuid
+import logging
+from typing import Optional, Tuple, Dict, Any
+from datetime import datetime, timedelta
+from flask import current_app
+from werkzeug.utils import secure_filename
+from azure.storage.blob import BlobServiceClient, ContentSettings, generate_blob_sas, BlobSasPermissions
+from azure.core.exceptions import AzureError
+
+logger = logging.getLogger(__name__)
+
+class BlobStorageService:
+    """Enhanced Azure Blob Storage service with error handling and features"""
+    
+    def __init__(self):
+        self.blob_service = None
+        self.container_name = None
+        self._initialized = False
+    
+    def init_app(self, app):
+        """Initialize with Flask app configuration"""
+        try:
+            conn_str = app.config.get('AZURE_STORAGE_CONNECTION_STRING')
+            if not conn_str or conn_str.startswith('DefaultEndpointsProtocol=https;AccountName=devtest'):
+                logger.warning("Using development Azure Storage configuration")
+                self._initialized = False
+                return
+            
+            self.blob_service = BlobServiceClient.from_connection_string(conn_str)
+            self.container_name = app.config.get('AZURE_STORAGE_CONTAINER', 'uploads')
+            self._ensure_container_exists()
+            self._initialized = True
+            logger.info("Azure Blob Storage service initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize Azure Blob Storage: {e}")
+            self._initialized = False
+    
+    def is_configured(self) -> bool:
+        """Check if blob storage is properly configured"""
+        return self._initialized and self.blob_service is not None
+    
+    def _ensure_container_exists(self):
+        """Ensure the container exists, create if it doesn't"""
+        try:
+            container_client = self.blob_service.get_container_client(self.container_name)
+            if not container_client.exists():
+                container_client.create_container(public_access='blob')
+                logger.info(f"Created container: {self.container_name}")
+        except Exception as e:
+            logger.error(f"Error ensuring container exists: {e}")
+    
+    def upload_file(self, file, folder: str = "", custom_name: str = None) -> Tuple[bool, Dict[str, Any]]:
+        """
+        Upload a file to Azure Blob Storage
+        
+        Args:
+            file: File object from request.files
+            folder: Optional folder path within container
+            custom_name: Optional custom filename
+            
+        Returns:
+            Tuple of (success: bool, result: dict)
+        """
+        if not self.is_configured():
+            return False, {"error": "Blob storage not configured"}
+        
+        try:
+            # Validate file
+            if not file or file.filename == "":
+                return False, {"error": "No file provided"}
+            
+            if not self._is_allowed_file(file.filename):
+                return False, {"error": "File type not allowed"}
+            
+            # Generate blob name
+            blob_name = self._generate_blob_name(file.filename, folder, custom_name)
+            
+            # Get content settings
+            content_settings = self._get_content_settings(file)
+            
+            # Upload to blob storage
+            blob_client = self.blob_service.get_blob_client(
+                container=self.container_name, 
+                blob=blob_name
+            )
+            
+            blob_client.upload_blob(
+                file.stream,
+                overwrite=True,
+                content_settings=content_settings,
+                metadata={
+                    "original_name": file.filename,
+                    "upload_time": datetime.utcnow().isoformat(),
+                    "content_type": file.mimetype or "application/octet-stream"
+                }
+            )
+            
+            # Generate public URL
+            public_url = f"https://{self.blob_service.account_name}.blob.core.windows.net/{self.container_name}/{blob_name}"
+            
+            logger.info(f"File uploaded successfully: {blob_name}")
+            
+            return True, {
+                "blob_name": blob_name,
+                "public_url": public_url,
+                "container": self.container_name,
+                "size": self._get_file_size(file),
+                "content_type": file.mimetype
+            }
+            
+        except AzureError as e:
+            logger.error(f"Azure error uploading file: {e}")
+            return False, {"error": f"Storage error: {str(e)}"}
+        except Exception as e:
+            logger.error(f"Unexpected error uploading file: {e}")
+            return False, {"error": "Upload failed"}
+    
+    def delete_file(self, blob_name: str) -> Tuple[bool, Dict[str, Any]]:
+        """
+        Delete a file from Azure Blob Storage
+        
+        Args:
+            blob_name: Name of the blob to delete
+            
+        Returns:
+            Tuple of (success: bool, result: dict)
+        """
+        if not self.is_configured():
+            return False, {"error": "Blob storage not configured"}
+        
+        try:
+            blob_client = self.blob_service.get_blob_client(
+                container=self.container_name,
+                blob=blob_name
+            )
+            
+            blob_client.delete_blob()
+            logger.info(f"File deleted successfully: {blob_name}")
+            
+            return True, {"message": f"File {blob_name} deleted successfully"}
+            
+        except AzureError as e:
+            logger.error(f"Azure error deleting file {blob_name}: {e}")
+            return False, {"error": f"Storage error: {str(e)}"}
+        except Exception as e:
+            logger.error(f"Unexpected error deleting file {blob_name}: {e}")
+            return False, {"error": "Delete failed"}
+    
+    def generate_download_url(self, blob_name: str, expiry_hours: int = 24) -> Optional[str]:
+        """
+        Generate a signed URL for secure file download
+        
+        Args:
+            blob_name: Name of the blob
+            expiry_hours: Hours until the URL expires
+            
+        Returns:
+            Signed URL or None if failed
+        """
+        if not self.is_configured():
+            return None
+        
+        try:
+            blob_client = self.blob_service.get_blob_client(
+                container=self.container_name,
+                blob=blob_name
+            )
+            
+            # Generate SAS token
+            sas_token = generate_blob_sas(
+                account_name=self.blob_service.account_name,
+                container_name=self.container_name,
+                blob_name=blob_name,
+                account_key=self.blob_service.credential.account_key,
+                permission=BlobSasPermissions(read=True),
+                expiry=datetime.utcnow() + timedelta(hours=expiry_hours)
+            )
+            
+            return f"{blob_client.url}?{sas_token}"
+            
+        except Exception as e:
+            logger.error(f"Error generating download URL for {blob_name}: {e}")
+            return None
+    
+    def list_files(self, folder: str = "", limit: int = 100) -> Tuple[bool, Dict[str, Any]]:
+        """
+        List files in the container
+        
+        Args:
+            folder: Optional folder to filter by
+            limit: Maximum number of files to return
+            
+        Returns:
+            Tuple of (success: bool, result: dict)
+        """
+        if not self.is_configured():
+            return False, {"error": "Blob storage not configured"}
+        
+        try:
+            container_client = self.blob_service.get_container_client(self.container_name)
+            
+            name_starts_with = folder if folder else None
+            blobs = container_client.list_blobs(name_starts_with=name_starts_with)
+            
+            files = []
+            count = 0
+            
+            for blob in blobs:
+                if count >= limit:
+                    break
+                
+                files.append({
+                    "name": blob.name,
+                    "size": blob.size,
+                    "last_modified": blob.last_modified.isoformat() if blob.last_modified else None,
+                    "content_type": blob.content_settings.content_type if blob.content_settings else None,
+                    "url": f"https://{self.blob_service.account_name}.blob.core.windows.net/{self.container_name}/{blob.name}"
+                })
+                count += 1
+            
+            return True, {
+                "files": files,
+                "total": count,
+                "container": self.container_name
+            }
+            
+        except AzureError as e:
+            logger.error(f"Azure error listing files: {e}")
+            return False, {"error": f"Storage error: {str(e)}"}
+        except Exception as e:
+            logger.error(f"Unexpected error listing files: {e}")
+            return False, {"error": "List operation failed"}
+    
+    def get_file_info(self, blob_name: str) -> Tuple[bool, Dict[str, Any]]:
+        """
+        Get information about a specific file
+        
+        Args:
+            blob_name: Name of the blob
+            
+        Returns:
+            Tuple of (success: bool, result: dict)
+        """
+        if not self.is_configured():
+            return False, {"error": "Blob storage not configured"}
+        
+        try:
+            blob_client = self.blob_service.get_blob_client(
+                container=self.container_name,
+                blob=blob_name
+            )
+            
+            properties = blob_client.get_blob_properties()
+            
+            return True, {
+                "name": blob_name,
+                "size": properties.size,
+                "last_modified": properties.last_modified.isoformat() if properties.last_modified else None,
+                "content_type": properties.content_settings.content_type if properties.content_settings else None,
+                "metadata": properties.metadata,
+                "url": f"https://{self.blob_service.account_name}.blob.core.windows.net/{self.container_name}/{blob_name}"
+            }
+            
+        except AzureError as e:
+            logger.error(f"Azure error getting file info for {blob_name}: {e}")
+            return False, {"error": f"Storage error: {str(e)}"}
+        except Exception as e:
+            logger.error(f"Unexpected error getting file info for {blob_name}: {e}")
+            return False, {"error": "Get info failed"}
+    
+    def _is_allowed_file(self, filename: str) -> bool:
+        """Check if file type is allowed"""
+        ALLOWED_EXTENSIONS = {
+            'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff',  # Images
+            'mp4', 'mov', 'avi', 'wmv', 'flv', 'webm',           # Videos
+            'pdf', 'doc', 'docx', 'txt',                         # Documents
+            'zip', 'rar', '7z'                                   # Archives
+        }
+        
+        return '.' in filename and \
+               filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    
+    def _generate_blob_name(self, filename: str, folder: str, custom_name: str = None) -> str:
+        """Generate a unique blob name"""
+        if custom_name:
+            base_name = secure_filename(custom_name)
+        else:
+            base_name = secure_filename(filename)
+        
+        # Extract extension
+        if '.' in base_name:
+            name, ext = base_name.rsplit('.', 1)
+            ext = ext.lower()
+        else:
+            name = base_name
+            ext = 'bin'
+        
+        # Generate unique name
+        unique_id = uuid.uuid4().hex[:8]
+        timestamp = datetime.utcnow().strftime('%Y%m%d')
+        
+        blob_name = f"{name}_{timestamp}_{unique_id}.{ext}"
+        
+        # Add folder if specified
+        if folder:
+            folder = folder.strip('/')
+            blob_name = f"{folder}/{blob_name}"
+        
+        return blob_name
+    
+    def _get_content_settings(self, file) -> ContentSettings:
+        """Get content settings for the file"""
+        content_type = file.mimetype or 'application/octet-stream'
+        
+        # Set cache control for different file types
+        cache_control = "public, max-age=31536000"  # 1 year for static assets
+        if content_type.startswith('video/'):
+            cache_control = "public, max-age=86400"  # 1 day for videos
+        
+        return ContentSettings(
+            content_type=content_type,
+            cache_control=cache_control
+        )
+    
+    def _get_file_size(self, file) -> int:
+        """Get file size"""
+        try:
+            file.stream.seek(0, 2)  # Seek to end
+            size = file.stream.tell()
+            file.stream.seek(0)     # Reset to beginning
+            return size
+        except:
+            return 0
+
+# Global instance
+blob_storage_service = BlobStorageService()

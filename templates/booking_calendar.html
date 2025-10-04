@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}Book Consultation - Flash Digital Studio{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="text-center mb-5">
+                <h1 class="display-5 fw-bold text-primary">Book Your Consultation</h1>
+                <p class="lead text-muted">Schedule a free consultation to discuss your project needs and get personalized recommendations.</p>
+            </div>
+
+            <div class="row">
+                <!-- Booking Form -->
+                <div class="col-lg-6">
+                    <div class="card shadow border-0">
+                        <div class="card-header bg-primary text-white">
+                            <h4 class="mb-0"><i class="bi bi-calendar-plus me-2"></i>Schedule Appointment</h4>
+                        </div>
+                        <div class="card-body p-4">
+                            <form method="POST" action="{{ url_for('public.booking_calendar') }}" id="bookingForm">
+                                <!-- Contact Information -->
+                                <div class="mb-4">
+                                    <h6 class="fw-bold text-muted mb-3">Contact Information</h6>
+                                    
+                                    <div class="mb-3">
+                                        <label for="name" class="form-label">Full Name *</label>
+                                        <input type="text" class="form-control" id="name" name="name" 
+                                               value="{{ form_data.name if form_data else '' }}" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email Address *</label>
+                                        <input type="email" class="form-control" id="email" name="email" 
+                                               value="{{ form_data.email if form_data else '' }}" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="phone" class="form-label">Phone Number</label>
+                                        <input type="tel" class="form-control" id="phone" name="phone" 
+                                               value="{{ form_data.phone if form_data else '' }}">
+                                    </div>
+                                </div>
+
+                                <!-- Service Details -->
+                                <div class="mb-4">
+                                    <h6 class="fw-bold text-muted mb-3">Appointment Details</h6>
+                                    
+                                    <div class="mb-3">
+                                        <label for="service_type" class="form-label">Service Interest *</label>
+                                        <select class="form-select" id="service_type" name="service_type" required>
+                                            <option value="">Select a service</option>
+                                            <option value="Consultation">General Consultation</option>
+                                            {% for category in categories %}
+                                            <option value="{{ category }}" 
+                                                    {% if form_data and form_data.service_type == category %}selected{% endif %}>
+                                                {{ category }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="booking_date" class="form-label">Preferred Date *</label>
+                                            <input type="date" class="form-control" id="booking_date" name="booking_date" 
+                                                   min="{{ today.strftime('%Y-%m-%d') }}" 
+                                                   value="{{ form_data.booking_date if form_data else '' }}" required>
+                                        </div>
+                                        
+                                        <div class="col-md-6 mb-3">
+                                            <label for="start_time" class="form-label">Preferred Time *</label>
+                                            <select class="form-select" id="start_time" name="start_time" required>
+                                                <option value="">Select time</option>
+                                                <option value="09:00">9:00 AM</option>
+                                                <option value="10:00">10:00 AM</option>
+                                                <option value="11:00">11:00 AM</option>
+                                                <option value="12:00">12:00 PM</option>
+                                                <option value="13:00">1:00 PM</option>
+                                                <option value="14:00">2:00 PM</option>
+                                                <option value="15:00">3:00 PM</option>
+                                                <option value="16:00">4:00 PM</option>
+                                                <option value="17:00">5:00 PM</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="duration_hours" class="form-label">Duration</label>
+                                        <select class="form-select" id="duration_hours" name="duration_hours">
+                                            <option value="1">1 Hour</option>
+                                            <option value="2">2 Hours</option>
+                                            <option value="3">3 Hours</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="location" class="form-label">Meeting Location</label>
+                                        <select class="form-select" id="location" name="location">
+                                            <option value="Our Studio">Our Studio (Downtown)</option>
+                                            <option value="Video Call">Video Call (Zoom/Teams)</option>
+                                            <option value="Client Location">Your Location</option>
+                                            <option value="Coffee Meeting">Coffee Shop Meeting</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="notes" class="form-label">Additional Notes</label>
+                                        <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                                  placeholder="Tell us about your project or any specific questions...">{{ form_data.notes if form_data else '' }}</textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Availability Check -->
+                                <div class="mb-3">
+                                    <div id="availability-check" class="alert alert-info" style="display: none;">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        <span id="availability-message">Checking availability...</span>
+                                    </div>
+                                </div>
+
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                                        <i class="bi bi-calendar-check me-2"></i>Request Appointment
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calendar View -->
+                <div class="col-lg-6">
+                    <div class="card shadow border-0">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Availability Calendar</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="calendar-grid">
+                                {% for date_str, day_data in calendar_data.items() %}
+                                <div class="calendar-day {% if day_data.bookings %}has-bookings{% endif %}" 
+                                     data-date="{{ date_str }}">
+                                    <div class="calendar-date">
+                                        <strong>{{ day_data.date.strftime('%d') }}</strong>
+                                        <br><small>{{ day_data.date.strftime('%b') }}</small>
+                                    </div>
+                                    {% if day_data.bookings %}
+                                    <div class="booking-indicator">
+                                        <small class="text-muted">{{ day_data.bookings|length }} booking(s)</small>
+                                    </div>
+                                    {% else %}
+                                    <div class="availability-indicator">
+                                        <small class="text-success">Available</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="mt-4">
+                                <h6 class="fw-bold">Business Hours</h6>
+                                <ul class="list-unstyled small">
+                                    <li><strong>Monday - Friday:</strong> 9:00 AM - 6:00 PM</li>
+                                    <li><strong>Saturday:</strong> 10:00 AM - 4:00 PM</li>
+                                    <li><strong>Sunday:</strong> By appointment only</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Consultation Benefits -->
+                    <div class="card border-0 bg-light mt-4">
+                        <div class="card-body">
+                            <h6 class="fw-bold mb-3">What to Expect</h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Free 30-minute consultation</li>
+                                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Portfolio review and examples</li>
+                                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Custom quote and timeline</li>
+                                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>No obligation or pressure</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.calendar-day {
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 70px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.calendar-day:hover {
+    background-color: #f8f9fa;
+    border-color: #007bff;
+}
+
+.calendar-day.has-bookings {
+    background-color: #fff3cd;
+    border-color: #ffc107;
+}
+
+.calendar-day.selected {
+    background-color: #007bff;
+    color: white;
+}
+
+.booking-indicator {
+    font-size: 0.75rem;
+}
+
+.availability-indicator {
+    font-size: 0.75rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('booking_date');
+    const timeInput = document.getElementById('start_time');
+    const durationInput = document.getElementById('duration_hours');
+    const availabilityDiv = document.getElementById('availability-check');
+    const availabilityMessage = document.getElementById('availability-message');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    // Calendar day selection
+    const calendarDays = document.querySelectorAll('.calendar-day');
+    calendarDays.forEach(day => {
+        day.addEventListener('click', function() {
+            const selectedDate = this.dataset.date;
+            dateInput.value = selectedDate;
+            
+            // Update visual selection
+            calendarDays.forEach(d => d.classList.remove('selected'));
+            this.classList.add('selected');
+            
+            checkAvailability();
+        });
+    });
+    
+    // Check availability when date/time changes
+    [dateInput, timeInput, durationInput].forEach(input => {
+        input.addEventListener('change', checkAvailability);
+    });
+    
+    function checkAvailability() {
+        const date = dateInput.value;
+        const time = timeInput.value;
+        const duration = durationInput.value;
+        
+        if (!date || !time) {
+            availabilityDiv.style.display = 'none';
+            return;
+        }
+        
+        availabilityDiv.style.display = 'block';
+        availabilityDiv.className = 'alert alert-info';
+        availabilityMessage.textContent = 'Checking availability...';
+        
+        fetch(`/api/check-availability?date=${date}&time=${time}&duration=${duration}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.available) {
+                    availabilityDiv.className = 'alert alert-success';
+                    availabilityMessage.innerHTML = '<i class="bi bi-check-circle me-2"></i>' + data.message;
+                    submitBtn.disabled = false;
+                } else {
+                    availabilityDiv.className = 'alert alert-warning';
+                    availabilityMessage.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>' + data.message;
+                    submitBtn.disabled = true;
+                }
+            })
+            .catch(error => {
+                availabilityDiv.className = 'alert alert-danger';
+                availabilityMessage.innerHTML = '<i class="bi bi-exclamation-circle me-2"></i>Error checking availability';
+                submitBtn.disabled = false;
+            });
+    }
+});
+</script>
+{% endblock %}

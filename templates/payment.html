@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Payment - Flash Studio{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Order Summary -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-receipt"></i> Order Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Order ID:</strong> #{{ order.id }}</p>
+                            <p><strong>Email:</strong> {{ order.customer_email }}</p>
+                            <p><strong>Items:</strong> {{ order.item_count }} item(s)</p>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <h4 class="text-primary">Total: {{ order.total_display }}</h4>
+                            <small class="text-muted">Singapore Dollar (SGD)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Form -->
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-credit-card"></i> Payment Details</h5>
+                </div>
+                <div class="card-body">
+                    <form id="payment-form">
+                        <!-- Stripe Elements will be inserted here -->
+                        <div id="card-element" class="form-control" style="padding: 12px; height: auto; min-height: 40px;">
+                            <!-- Stripe Elements creates form elements here -->
+                        </div>
+                        
+                        <!-- Show any error that happens when processing the payment -->
+                        <div id="card-errors" role="alert" class="mt-3 text-danger"></div>
+                        
+                        <!-- Payment Processing Status -->
+                        <div id="payment-status" class="mt-3" style="display: none;">
+                            <div class="d-flex align-items-center">
+                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <span>Processing your payment...</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 d-grid gap-2">
+                            <button id="submit-payment" class="btn btn-primary btn-lg">
+                                <i class="bi bi-lock-fill me-2"></i>
+                                Pay {{ order.total_display }} Securely
+                            </button>
+                            
+                            <a href="{{ url_for('public.cart') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>
+                                Back to Cart
+                            </a>
+                        </div>
+                        
+                        <!-- Security Notice -->
+                        <div class="mt-3 text-center">
+                            <small class="text-muted">
+                                <i class="bi bi-shield-check text-success me-1"></i>
+                                Your payment is secured by Stripe. We never store your card details.
+                            </small>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Accepted Payment Methods -->
+            <div class="card mt-4">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-3">We Accept</h6>
+                    <div class="d-flex justify-content-center gap-3">
+                        <i class="bi bi-credit-card-2-front fs-2 text-primary"></i>
+                        <i class="bi bi-credit-card-2-back fs-2 text-success"></i>
+                        <span class="badge bg-primary p-2">Visa</span>
+                        <span class="badge bg-warning p-2">Mastercard</span>
+                        <span class="badge bg-info p-2">Amex</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if Stripe is configured
+    const stripePublishableKey = "{{ stripe_publishable_key }}";
+    
+    if (!stripePublishableKey) {
+        document.getElementById('card-errors').textContent = 'Payment system not configured. Please contact support.';
+        document.getElementById('submit-payment').disabled = true;
+        return;
+    }
+
+    // Initialize Stripe
+    const stripe = Stripe(stripePublishableKey);
+    const elements = stripe.elements();
+
+    // Custom styling for Stripe Elements
+    const style = {
+        base: {
+            color: '#32325d',
+            fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+            fontSmoothing: 'antialiased',
+            fontSize: '16px',
+            '::placeholder': {
+                color: '#aab7c4'
+            }
+        },
+        invalid: {
+            color: '#fa755a',
+            iconColor: '#fa755a'
+        }
+    };
+
+    // Create card element
+    const cardElement = elements.create('card', {style: style});
+    cardElement.mount('#card-element');
+
+    // Handle real-time validation errors from the card Element
+    cardElement.on('change', ({error}) => {
+        const displayError = document.getElementById('card-errors');
+        if (error) {
+            displayError.textContent = error.message;
+        } else {
+            displayError.textContent = '';
+        }
+    });
+
+    // Handle form submission
+    const form = document.getElementById('payment-form');
+    const submitButton = document.getElementById('submit-payment');
+    const paymentStatus = document.getElementById('payment-status');
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        // Disable submit button and show processing status
+        submitButton.disabled = true;
+        paymentStatus.style.display = 'block';
+
+        try {
+            // Create payment intent
+            const response = await fetch('/payment/create-intent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    order_id: {{ order.id }}
+                })
+            });
+
+            const {client_secret, error} = await response.json();
+
+            if (error) {
+                throw new Error(error);
+            }
+
+            // Confirm payment with Stripe
+            const {error: stripeError, paymentIntent} = await stripe.confirmCardPayment(client_secret, {
+                payment_method: {
+                    card: cardElement,
+                    billing_details: {
+                        email: '{{ order.customer_email }}'
+                    }
+                }
+            });
+
+            if (stripeError) {
+                throw new Error(stripeError.message);
+            }
+
+            // Payment succeeded
+            if (paymentIntent.status === 'succeeded') {
+                // Confirm payment on our server
+                const confirmResponse = await fetch('/payment/confirm', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        payment_intent_id: paymentIntent.id
+                    })
+                });
+
+                const confirmResult = await confirmResponse.json();
+
+                if (confirmResult.success) {
+                    // Redirect to success page
+                    window.location.href = confirmResult.redirect_url;
+                } else {
+                    throw new Error(confirmResult.error || 'Payment confirmation failed');
+                }
+            }
+
+        } catch (err) {
+            // Show error to customer
+            document.getElementById('card-errors').textContent = err.message;
+            
+            // Re-enable submit button and hide processing status
+            submitButton.disabled = false;
+            paymentStatus.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}{{ package.name }} - {{ package.service_type }} - Flash Digital Studio{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Package Header -->
+            <div class="text-center mb-5">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb justify-content-center">
+                        <li class="breadcrumb-item"><a href="{{ url_for('public.service_packages') }}">Service Packages</a></li>
+                        <li class="breadcrumb-item">{{ package.service_type }}</li>
+                        <li class="breadcrumb-item active">{{ package.name }}</li>
+                    </ol>
+                </nav>
+                
+                {% if package.popular %}
+                <span class="badge bg-warning text-dark px-3 py-2 rounded-pill mb-3">MOST POPULAR</span>
+                {% endif %}
+                
+                <h1 class="display-4 fw-bold text-primary">{{ package.name }}</h1>
+                <p class="lead text-muted">{{ package.service_type }} Package</p>
+                
+                {% if package.description %}
+                <div class="alert alert-info">{{ package.description }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Package Details Card -->
+            <div class="card shadow-lg border-0 mb-5">
+                <div class="card-body p-5">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h2 class="text-primary fw-bold mb-4">Package Includes</h2>
+                            
+                            {% if features %}
+                            <ul class="list-unstyled">
+                                {% for feature in features %}
+                                <li class="mb-3">
+                                    <i class="bi bi-check-circle-fill text-success me-3"></i>
+                                    <span class="fs-5">{{ feature.strip() }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p class="text-muted">Feature details will be provided upon quote request.</p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="bg-light rounded p-4">
+                                <h3 class="text-center mb-4">Package Details</h3>
+                                
+                                <div class="text-center mb-4">
+                                    <div class="display-3 text-success fw-bold">${{ package.price_cents // 100 }}</div>
+                                    <small class="text-muted">Starting price</small>
+                                </div>
+                                
+                                <div class="row text-center">
+                                    {% if package.max_hours %}
+                                    <div class="col-6 mb-3">
+                                        <div class="text-primary fw-bold fs-4">{{ package.max_hours }}</div>
+                                        <small class="text-muted">Hours Coverage</small>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if package.turnaround_days %}
+                                    <div class="col-6 mb-3">
+                                        <div class="text-primary fw-bold fs-4">{{ package.turnaround_days }}</div>
+                                        <small class="text-muted">Days Delivery</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if package.deliverables %}
+                                <div class="mt-4">
+                                    <h6 class="fw-bold text-muted">What You'll Receive:</h6>
+                                    <p class="small">{{ package.deliverables }}</p>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="d-grid gap-2 mt-4">
+                                    <a href="{{ url_for('public.request_quote') }}?service={{ package.service_type }}&package={{ package.name }}" 
+                                       class="btn btn-primary btn-lg">
+                                        <i class="bi bi-envelope-fill me-2"></i>Request This Package
+                                    </a>
+                                    <a href="tel:+65-1234-5678" class="btn btn-outline-primary">
+                                        <i class="bi bi-phone-fill me-2"></i>Call to Discuss
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FAQ Section -->
+            <div class="card border-0 shadow-sm mb-5">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Frequently Asked Questions</h4>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="packageFAQ">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                                    Can I customize this package?
+                                </button>
+                            </h2>
+                            <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#packageFAQ">
+                                <div class="accordion-body">
+                                    Absolutely! Our packages serve as a starting point. We can add or modify services to perfectly match your needs and budget.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                                    What's included in the price?
+                                </button>
+                            </h2>
+                            <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#packageFAQ">
+                                <div class="accordion-body">
+                                    The package price includes all listed features, professional equipment, editing, and final delivery. Travel within the city is included; additional charges may apply for distant locations.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                                    How do I book this package?
+                                </button>
+                            </h2>
+                            <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#packageFAQ">
+                                <div class="accordion-body">
+                                    Click "Request This Package" to get started. We'll contact you within 24 hours to discuss details, confirm availability, and finalize your booking.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
+                                    What if I need to reschedule?
+                                </button>
+                            </h2>
+                            <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#packageFAQ">
+                                <div class="accordion-body">
+                                    We understand plans change. Contact us as soon as possible to reschedule. We'll work with you to find a new date that works for everyone.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Packages -->
+            <div class="text-center">
+                <a href="{{ url_for('public.service_packages') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-left me-2"></i>View All Packages
+                </a>
+                <a href="{{ url_for('public.corporate_services') }}" class="btn btn-outline-secondary ms-2">
+                    Our Services
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

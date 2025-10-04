@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Booking #{{ booking.id }} - Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Booking #{{ booking.id }}</h1>
+    <a href="{{ url_for('admin.bookings') }}" class="btn btn-outline-primary">← Back to Bookings</a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Booking Details -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header {% if booking.is_past %}bg-secondary{% else %}bg-primary{% endif %} text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-calendar-event me-2"></i>Appointment Details
+                    {% if booking.status == 'pending' %}
+                    <span class="badge bg-warning ms-2">PENDING CONFIRMATION</span>
+                    {% elif booking.status == 'confirmed' %}
+                    <span class="badge bg-success ms-2">CONFIRMED</span>
+                    {% elif booking.status == 'cancelled' %}
+                    <span class="badge bg-danger ms-2">CANCELLED</span>
+                    {% elif booking.status == 'completed' %}
+                    <span class="badge bg-info ms-2">COMPLETED</span>
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-muted">Client Information</h6>
+                        <p class="mb-1"><strong>Name:</strong> {{ booking.name }}</p>
+                        <p class="mb-1"><strong>Email:</strong> 
+                            <a href="mailto:{{ booking.email }}">{{ booking.email }}</a>
+                        </p>
+                        {% if booking.phone %}
+                        <p class="mb-1"><strong>Phone:</strong> 
+                            <a href="tel:{{ booking.phone }}">{{ booking.phone }}</a>
+                        </p>
+                        {% endif %}
+                        <p class="mb-1"><strong>Requested:</strong> {{ booking.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-muted">Appointment Details</h6>
+                        <p class="mb-1"><strong>Service:</strong> 
+                            <span class="badge bg-primary">{{ booking.service_type }}</span>
+                        </p>
+                        <p class="mb-1"><strong>Date:</strong> {{ booking.date_display }}</p>
+                        <p class="mb-1"><strong>Time:</strong> {{ booking.time_display }}</p>
+                        <p class="mb-1"><strong>Duration:</strong> {{ booking.duration_hours }} hour(s)</p>
+                        {% if booking.location %}
+                        <p class="mb-1"><strong>Location:</strong> {{ booking.location }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if booking.notes %}
+                <div class="mt-3">
+                    <h6 class="fw-bold text-muted">Client Notes</h6>
+                    <div class="bg-light p-3 rounded">
+                        {{ booking.notes|replace('\n', '<br>')|safe }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Related Quote Request -->
+        {% if booking.quote_request %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-link me-2"></i>Related Quote Request</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Quote ID:</strong> #{{ booking.quote_request.id }}</p>
+                <p><strong>Service:</strong> {{ booking.quote_request.service_type }}</p>
+                {% if booking.quote_request.budget_range %}
+                <p><strong>Budget:</strong> {{ booking.quote_request.budget_range }}</p>
+                {% endif %}
+                <a href="{{ url_for('admin.quote_detail', quote_id=booking.quote_request.id) }}" 
+                   class="btn btn-info btn-sm">View Quote Request</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Booking Management -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-gear-fill me-2"></i>Manage Booking</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.booking_detail', booking_id=booking.id) }}">
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Booking Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="pending" {% if booking.status == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="confirmed" {% if booking.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                            <option value="cancelled" {% if booking.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                            <option value="completed" {% if booking.status == 'completed' %}selected{% endif %}>Completed</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="admin_notes" class="form-label">Internal Notes</label>
+                        <textarea class="form-control" id="admin_notes" name="admin_notes" 
+                                  rows="4" placeholder="Add internal notes about this booking...">{{ booking.notes or '' }}</textarea>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle-fill me-2"></i>Update Booking
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightning-fill me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="mailto:{{ booking.email }}?subject=Booking Confirmation - {{ booking.date_display }}&body=Dear {{ booking.name }},%0A%0AYour booking for {{ booking.service_type }} on {{ booking.date_display }} at {{ booking.time_display }} has been confirmed.%0A%0A" 
+                       class="btn btn-outline-primary">
+                        <i class="bi bi-envelope-fill me-2"></i>Send Confirmation Email
+                    </a>
+                    
+                    {% if booking.phone %}
+                    <a href="tel:{{ booking.phone }}" class="btn btn-outline-success">
+                        <i class="bi bi-phone-fill me-2"></i>Call Client
+                    </a>
+                    {% endif %}
+                    
+                    <button class="btn btn-outline-info" onclick="copyBookingDetails()">
+                        <i class="bi bi-clipboard-fill me-2"></i>Copy Details
+                    </button>
+                    
+                    {% if booking.quote_request %}
+                    <a href="{{ url_for('admin.quote_detail', quote_id=booking.quote_request.id) }}" 
+                       class="btn btn-outline-warning">
+                        <i class="bi bi-link me-2"></i>View Quote
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h6 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Danger Zone</h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-3">Permanently delete this booking. This action cannot be undone.</p>
+                <form method="POST" action="{{ url_for('admin.delete_booking', booking_id=booking.id) }}" 
+                      onsubmit="return confirm('Are you sure you want to delete this booking? This action cannot be undone.')">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-trash me-2"></i>Delete Booking
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyBookingDetails() {
+    var details = `Booking #{{ booking.id }}
+Client: {{ booking.name }}
+Email: {{ booking.email }}
+{% if booking.phone %}Phone: {{ booking.phone }}{% endif %}
+Service: {{ booking.service_type }}
+Date: {{ booking.date_display }}
+Time: {{ booking.time_display }}
+Duration: {{ booking.duration_hours }} hour(s)
+{% if booking.location %}Location: {{ booking.location }}{% endif %}
+Status: {{ booking.status|title }}
+
+{% if booking.notes %}Client Notes:
+{{ booking.notes }}{% endif %}`;
+
+    navigator.clipboard.writeText(details).then(function() {
+        alert('Booking details copied to clipboard!');
+    });
+}
+</script>
+{% endblock %}

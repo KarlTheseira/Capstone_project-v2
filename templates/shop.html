@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Shop Prints — Flash Studio{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+  <h1 class="h3 mb-4">Shop Prints</h1>
+
+  <!-- Filters Panel -->
+  <form method="get" class="filters-panel">
+    <div class="row g-3">
+      <!-- Search -->
+      <div class="col-lg-4">
+        <div class="form-floating">
+          <input class="form-control" type="text" name="q" id="searchInput" 
+                 placeholder="Search products..." value="{{ filters.q if filters else '' }}">
+          <label for="searchInput">Search products</label>
+        </div>
+      </div>
+
+      <!-- Price Range -->
+      <div class="col-lg-4">
+        <div class="row g-2">
+          <div class="col-6">
+            <div class="form-floating">
+              <input class="form-control" type="number" name="min_price" id="minPrice"
+                     placeholder="Min price" value="{{ filters.min_price if filters else '' }}">
+              <label for="minPrice">Min price (S$)</label>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="form-floating">
+              <input class="form-control" type="number" name="max_price" id="maxPrice"
+                     placeholder="Max price" value="{{ filters.max_price if filters else '' }}">
+              <label for="maxPrice">Max price (S$)</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Categories -->
+      <div class="col-lg-2">
+        <div class="form-floating">
+          <select class="form-select" name="category" id="categorySelect">
+            <option value="">All Categories</option>
+            {% for c in categories %}
+              <option value="{{ c }}" {% if filters.category == c %}selected{% endif %}>
+                {{ c }}
+              </option>
+            {% endfor %}
+          </select>
+          <label for="categorySelect">Category</label>
+        </div>
+      </div>
+
+      <!-- Media Type -->
+      <div class="col-lg-2">
+        <div class="form-floating">
+          <select class="form-select" name="media_type" id="mediaTypeSelect">
+            <option value="">All Media Types</option>
+            {% for m in media_types %}
+              <option value="{{ m }}" {% if filters.media_type == m %}selected{% endif %}>
+                {{ m }}
+              </option>
+            {% endfor %}
+          </select>
+          <label for="mediaTypeSelect">Media Type</label>
+        </div>
+      </div>
+
+      <!-- Filter Button -->
+      <div class="col-12 text-end">
+        <button class="btn btn-primary px-4" type="submit">
+          Apply Filters
+        </button>
+      </div>
+    </div>
+
+    <!-- Active Filters -->
+    {% if filters and (filters.q or filters.category or filters.media_type or filters.min_price or filters.max_price) %}
+      <div class="active-filters">
+        {% if filters.q %}
+          <span class="filter-tag">
+            Search: {{ filters.q }}
+            <button type="submit" name="q" value="" aria-label="Clear search filter">&times;</button>
+          </span>
+        {% endif %}
+        {% if filters.category %}
+          <span class="filter-tag">
+            Category: {{ filters.category }}
+            <button type="submit" name="category" value="" aria-label="Clear category filter">&times;</button>
+          </span>
+        {% endif %}
+        {% if filters.media_type %}
+          <span class="filter-tag">
+            Type: {{ filters.media_type }}
+            <button type="submit" name="media_type" value="" aria-label="Clear media type filter">&times;</button>
+          </span>
+        {% endif %}
+        {% if filters.min_price or filters.max_price %}
+          <span class="filter-tag">
+            Price: 
+            {% if filters.min_price %}S${{ filters.min_price }}{% endif %}
+            {% if filters.min_price and filters.max_price %} - {% endif %}
+            {% if filters.max_price %}S${{ filters.max_price }}{% endif %}
+            <button type="submit" name="min_price" value="" aria-label="Clear price filter">&times;</button>
+          </span>
+        {% endif %}
+      </div>
+    {% endif %}
+  </form>
+
+  <!-- Products Grid -->
+  {% if products %}
+    <div class="products-grid">
+      {% for p in products %}
+        <a class="text-decoration-none product-card" href="{{ url_for('public.product', product_id=p.id) }}">
+          {% if p.thumbnail_key %}
+            <img class="product-card-img" 
+                 src="{{ url_for('static', filename='uploads/' ~ p.thumbnail_key) }}"
+                 alt="{{ p.title }}">
+          {% else %}
+            <img class="product-card-img"
+                 src="{{ url_for('static', filename='images/placeholder.jpg') }}"
+                 alt="{{ p.title }}">
+          {% endif %}
+          <div class="product-card-body">
+            {% if p.category %}
+              <div class="product-category">{{ p.category }}</div>
+            {% endif %}
+            <h2 class="product-title">{{ p.title }}</h2>
+            <div class="product-price">S$ {{ '%.2f'|format(p.price_cents/100) }}</div>
+          </div>
+          <button class="btn btn-outline-primary btn-sm quick-view-btn" onclick="quickView('{{ p.id }}')">
+            Quick View
+          </button>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center text-muted py-5">
+      <div class="mb-3">🔍</div>
+      <h3 class="h5 mb-2">No products found</h3>
+      <p class="text-muted">Try adjusting your filters or search terms.</p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Quick View Modal -->
+<div class="modal fade" id="quickViewModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content" id="quickViewContent">
+      <!-- Content loaded via AJAX -->
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function quickView(productId) {
+  event.preventDefault(); // Don't navigate to product page
+  
+  // Show loading state
+  const modal = new bootstrap.Modal(document.getElementById('quickViewModal'));
+  modal.show();
+  
+  // Fetch product details (you'll need to create this endpoint)
+  fetch(`/api/products/${productId}/quick-view`)
+    .then(res => res.text())
+    .then(html => {
+      document.getElementById('quickViewContent').innerHTML = html;
+    })
+    .catch(err => {
+      console.error('Quick view error:', err);
+      // Fallback: redirect to full product page
+      window.location.href = `/product/${productId}`;
+    });
+}
+</script>
+{% endblock %}

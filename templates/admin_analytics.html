@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Analytics Dashboard - FlashStudio Admin{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css" rel="stylesheet">
+<style>
+    .analytics-dashboard {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border: 1px solid #e9ecef;
+        transition: transform 0.2s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+    
+    .metric-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .growth-positive {
+        color: #28a745;
+    }
+    
+    .growth-negative {
+        color: #dc3545;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 400px;
+        background: white;
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .period-selector {
+        background: white;
+        border-radius: 8px;
+        padding: 0.5rem;
+        display: inline-flex;
+        gap: 0.5rem;
+    }
+    
+    .period-btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        background: transparent;
+        color: #6c757d;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .period-btn.active {
+        background: #007bff;
+        color: white;
+    }
+    
+    .period-btn:hover:not(.active) {
+        background: #f8f9fa;
+    }
+    
+    .top-products-list {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .product-item {
+        padding: 1rem;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+    
+    .product-item:last-child {
+        border-bottom: none;
+    }
+    
+    .product-rank {
+        background: #007bff;
+        color: white;
+        border-radius: 50%;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        margin-right: 1rem;
+    }
+    
+    .loading-spinner {
+        text-align: center;
+        padding: 2rem;
+        color: #6c757d;
+    }
+    
+    .refresh-btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+    
+    .refresh-btn:hover {
+        background: #218838;
+    }
+    
+    .admin-nav {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .nav-link {
+        color: #007bff;
+        text-decoration: none;
+        margin-right: 1rem;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        transition: background 0.2s ease;
+    }
+    
+    .nav-link:hover {
+        background: #f8f9fa;
+        text-decoration: none;
+    }
+    
+    .nav-link.active {
+        background: #007bff;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="analytics-dashboard">
+    <div class="container">
+        <!-- Admin Navigation -->
+        <div class="admin-nav">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="{{ url_for('admin.dashboard') }}" class="nav-link">Dashboard</a>
+                    <a href="{{ url_for('admin.analytics') }}" class="nav-link active">Analytics</a>
+                    <a href="{{ url_for('admin.admin_orders') }}" class="nav-link">Orders</a>
+                    <a href="{{ url_for('admin.quotes') }}" class="nav-link">Quotes</a>
+                    <a href="{{ url_for('admin.bookings') }}" class="nav-link">Bookings</a>
+                </div>
+                <button onclick="refreshData()" class="refresh-btn">
+                    <i class="fas fa-sync-alt"></i> Refresh Data
+                </button>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="mb-1">Payment Analytics</h1>
+                        <p class="text-muted">Comprehensive business intelligence dashboard</p>
+                    </div>
+                    
+                    <!-- Period Selector -->
+                    <div class="period-selector">
+                        <button class="period-btn {% if selected_days == 7 %}active{% endif %}" 
+                                onclick="changePeriod(7)">7 Days</button>
+                        <button class="period-btn {% if selected_days == 30 %}active{% endif %}" 
+                                onclick="changePeriod(30)">30 Days</button>
+                        <button class="period-btn {% if selected_days == 90 %}active{% endif %}" 
+                                onclick="changePeriod(90)">90 Days</button>
+                        <button class="period-btn {% if selected_days == 365 %}active{% endif %}" 
+                                onclick="changePeriod(365)">1 Year</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Metrics Row -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card">
+                    <div class="metric-value" id="total-revenue">
+                        ${{ "%.2f"|format(analytics.revenue_summary.current_revenue) }}
+                    </div>
+                    <div class="metric-label">Total Revenue</div>
+                    <div class="mt-2">
+                        <span class="{% if analytics.revenue_summary.growth_rate >= 0 %}growth-positive{% else %}growth-negative{% endif %}">
+                            <i class="fas fa-{% if analytics.revenue_summary.growth_rate >= 0 %}arrow-up{% else %}arrow-down{% endif %}"></i>
+                            {{ "%.1f"|format(analytics.revenue_summary.growth_rate|abs) }}%
+                        </span>
+                        <small class="text-muted">vs previous period</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card">
+                    <div class="metric-value" id="total-orders">
+                        {{ analytics.revenue_summary.order_count }}
+                    </div>
+                    <div class="metric-label">Total Orders</div>
+                    <div class="mt-2">
+                        <span class="text-primary">
+                            <i class="fas fa-shopping-cart"></i>
+                            ${{ "%.2f"|format(analytics.revenue_summary.average_order_value) }} avg
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card">
+                    <div class="metric-value" id="success-rate">
+                        {{ "%.1f"|format(analytics.payment_success.success_rate) }}%
+                    </div>
+                    <div class="metric-label">Payment Success Rate</div>
+                    <div class="mt-2">
+                        <span class="text-success">
+                            <i class="fas fa-check-circle"></i>
+                            {{ analytics.payment_success.successful_payments }} successful
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="metric-card">
+                    <div class="metric-value" id="new-customers">
+                        {{ analytics.customer_metrics.new_customers }}
+                    </div>
+                    <div class="metric-label">New Customers</div>
+                    <div class="mt-2">
+                        <span class="text-info">
+                            <i class="fas fa-users"></i>
+                            {{ "%.1f"|format(analytics.customer_metrics.retention_rate) }}% retention
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row mb-4">
+            <div class="col-lg-8 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-3">Daily Revenue Trend</h5>
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-3">Payment Status Distribution</h5>
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Row -->
+        <div class="row">
+            <div class="col-lg-6 mb-3">
+                <div class="top-products-list">
+                    <div class="p-3 border-bottom">
+                        <h5 class="mb-0">Top Products by Revenue</h5>
+                    </div>
+                    <div id="top-products-revenue">
+                        {% for product in analytics.top_products.top_by_revenue[:5] %}
+                        <div class="product-item">
+                            <div class="product-rank">{{ loop.index }}</div>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold">{{ product.product_name }}</div>
+                                <div class="text-muted small">${{ "%.2f"|format(product.revenue) }} revenue • {{ product.quantity }} sold</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% if not analytics.top_products.top_by_revenue %}
+                        <div class="product-item">
+                            <div class="text-muted">No sales data available for this period</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6 mb-3">
+                <div class="top-products-list">
+                    <div class="p-3 border-bottom">
+                        <h5 class="mb-0">Customer Insights</h5>
+                    </div>
+                    <div class="p-3">
+                        <div class="row">
+                            <div class="col-6 text-center border-end">
+                                <div class="h4 text-primary">{{ analytics.customer_metrics.total_customers }}</div>
+                                <div class="small text-muted">Total Customers</div>
+                            </div>
+                            <div class="col-6 text-center">
+                                <div class="h4 text-success">${{ "%.2f"|format(analytics.customer_metrics.customer_lifetime_value) }}</div>
+                                <div class="small text-muted">Avg Lifetime Value</div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-6 text-center border-end">
+                                <div class="h5 text-info">{{ analytics.customer_metrics.new_customers }}</div>
+                                <div class="small text-muted">New Customers</div>
+                            </div>
+                            <div class="col-6 text-center">
+                                <div class="h5 text-warning">{{ analytics.customer_metrics.returning_customers }}</div>
+                                <div class="small text-muted">Returning Customers</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="d-none">
+            <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                <div class="mt-2">Loading analytics data...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+<script>
+let revenueChart, statusChart;
+
+// Initialize charts on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+});
+
+function initializeCharts() {
+    // Revenue Chart
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    const chartData = {{ analytics.daily_revenue_chart.chart_data | tojson }};
+    
+    revenueChart = new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: chartData.map(d => d.date),
+            datasets: [{
+                label: 'Daily Revenue',
+                data: chartData.map(d => d.revenue),
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: 'Daily Orders',
+                data: chartData.map(d => d.orders),
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                tension: 0.4,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Revenue ($)'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Orders'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            }
+        }
+    });
+    
+    // Status Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    const paymentData = {{ analytics.payment_success | tojson }};
+    
+    statusChart = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Successful', 'Failed', 'Pending'],
+            datasets: [{
+                data: [
+                    paymentData.successful_payments,
+                    paymentData.failed_payments,
+                    paymentData.pending_payments
+                ],
+                backgroundColor: ['#28a745', '#dc3545', '#ffc107']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function changePeriod(days) {
+    // Update URL and reload page with new period
+    window.location.href = `{{ url_for('admin.analytics') }}?days=${days}`;
+}
+
+function refreshData() {
+    const overlay = document.getElementById('loading-overlay');
+    overlay.classList.remove('d-none');
+    
+    // Reload the page to get fresh data
+    window.location.reload();
+}
+
+// Auto-refresh every 5 minutes
+setInterval(function() {
+    refreshData();
+}, 300000);
+</script>
+{% endblock %}

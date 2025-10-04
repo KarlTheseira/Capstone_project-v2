@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ product.title }} · Flash Studio{% endblock %}
+
+{% block content %}
+<div class="video-player-wrapper">
+    <div class="video-container">
+        {% if product.video_key %}
+            <div class="video-loading">Loading...</div>
+            <video class="video-player" id="videoPlayer">
+                <source src="{{ url_for('video.play', video_id=product.id) }}" type="video/mp4">
+                Your browser does not support the video element.
+            </video>
+            <div class="video-controls">
+                <button class="btn btn-link text-white" id="playPauseBtn">
+                    <i class="bi bi-play-fill"></i>
+                </button>
+                <div class="video-progress">
+                    <div class="video-progress-bar"></div>
+                </div>
+                <span class="video-time">0:00 / 0:00</span>
+                <button class="btn btn-link text-white" id="fullscreenBtn">
+                    <i class="bi bi-fullscreen"></i>
+                </button>
+            </div>
+        {% endif %}
+    </div>
+    
+    <div class="video-info-panel">
+        <h1 class="h3 mb-4">{{ product.title }}</h1>
+        
+        <div class="video-metadata">
+            <div class="video-metadata-item">
+                <h3>Duration</h3>
+                <p>{{ product.duration_display }}</p>
+            </div>
+            {% if product.project_date %}
+            <div class="video-metadata-item">
+                <h3>Release Date</h3>
+                <p>{{ product.project_date.strftime('%B %d, %Y') }}</p>
+            </div>
+            {% endif %}
+            {% if product.client_name %}
+            <div class="video-metadata-item">
+                <h3>Client</h3>
+                <p>{{ product.client_name }}</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="description">
+            <h2 class="h5 mb-3">About this Project</h2>
+            <p class="text-muted">{{ product.description }}</p>
+        </div>
+        
+        {% if product.client_testimonial %}
+        <div class="testimonial mt-4">
+            <blockquote class="blockquote">
+                <p class="mb-0">{{ product.client_testimonial }}</p>
+                <footer class="blockquote-footer mt-2">{{ product.client_name }}</footer>
+            </blockquote>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/video.css') }}">
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('videoPlayer');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const progress = document.querySelector('.video-progress');
+    const progressBar = document.querySelector('.video-progress-bar');
+    const timeDisplay = document.querySelector('.video-time');
+    const loadingIndicator = document.querySelector('.video-loading');
+    
+    // Loading indicator
+    video.addEventListener('loadstart', () => loadingIndicator.classList.add('active'));
+    video.addEventListener('canplay', () => loadingIndicator.classList.remove('active'));
+    
+    // Play/Pause
+    playPauseBtn.addEventListener('click', () => {
+        if (video.paused) {
+            video.play();
+            playPauseBtn.innerHTML = '<i class="bi bi-pause-fill"></i>';
+        } else {
+            video.pause();
+            playPauseBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
+        }
+    });
+    
+    // Progress bar
+    video.addEventListener('timeupdate', () => {
+        const percent = (video.currentTime / video.duration) * 100;
+        progressBar.style.width = `${percent}%`;
+        
+        // Update time display
+        const current = formatTime(video.currentTime);
+        const total = formatTime(video.duration);
+        timeDisplay.textContent = `${current} / ${total}`;
+    });
+    
+    // Click on progress bar
+    progress.addEventListener('click', (e) => {
+        const rect = progress.getBoundingClientRect();
+        const pos = (e.clientX - rect.left) / rect.width;
+        video.currentTime = pos * video.duration;
+    });
+    
+    // Fullscreen
+    fullscreenBtn.addEventListener('click', () => {
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+            fullscreenBtn.innerHTML = '<i class="bi bi-fullscreen"></i>';
+        } else {
+            video.requestFullscreen();
+            fullscreenBtn.innerHTML = '<i class="bi bi-fullscreen-exit"></i>';
+        }
+    });
+    
+    // Format time helper
+    function formatTime(seconds) {
+        seconds = Math.floor(seconds);
+        const minutes = Math.floor(seconds / 60);
+        seconds = seconds % 60;
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+});
+</script>
+{% endblock %}

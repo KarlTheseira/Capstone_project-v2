@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Service Packages - Flash Digital Studio{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="bg-primary text-white py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center">
+                <h1 class="display-4 fw-bold mb-4">Service Packages</h1>
+                <p class="lead">Choose from our carefully crafted packages or customize one to fit your needs perfectly.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Package Sections -->
+{% if packages_by_service %}
+    {% for service_type, packages in packages_by_service.items() %}
+    <section class="py-5">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="display-5 fw-bold text-primary">{{ service_type }}</h2>
+                <p class="lead text-muted">Professional {{ service_type.lower() }} packages to suit every need and budget</p>
+            </div>
+
+            <div class="row g-4 justify-content-center">
+                {% for package in packages %}
+                <div class="col-lg-4 col-md-6">
+                    <div class="card h-100 shadow-sm border-0 {% if package.popular %}border-warning{% endif %} position-relative">
+                        {% if package.popular %}
+                        <div class="position-absolute top-0 start-50 translate-middle">
+                            <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">MOST POPULAR</span>
+                        </div>
+                        {% endif %}
+
+                        <div class="card-header bg-transparent text-center py-4">
+                            <h4 class="card-title text-primary fw-bold">{{ package.name }}</h4>
+                            {% if package.description %}
+                            <p class="text-muted">{{ package.description }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="card-body text-center">
+                            <div class="display-4 text-success fw-bold mb-4">${{ package.price_cents // 100 }}</div>
+
+                            {% if package.features %}
+                            <ul class="list-unstyled text-start">
+                                {% set features_str = package.features|string %}
+                                {% if features_str.startswith('[') %}
+                                    {% for feature in features_str[1:-1].replace('"', '').split(', ') %}
+                                    <li class="mb-2">
+                                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                        {{ feature.strip() }}
+                                    </li>
+                                    {% endfor %}
+                                {% else %}
+                                    <li class="mb-2">
+                                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                        {{ features_str }}
+                                    </li>
+                                {% endif %}
+                            </ul>
+                            {% endif %}
+
+                            <div class="row text-center mt-4">
+                                {% if package.max_hours %}
+                                <div class="col-6">
+                                    <div class="text-muted small">Coverage</div>
+                                    <div class="fw-bold">{{ package.max_hours }} hours</div>
+                                </div>
+                                {% endif %}
+                                {% if package.turnaround_days %}
+                                <div class="col-6">
+                                    <div class="text-muted small">Delivery</div>
+                                    <div class="fw-bold">{{ package.turnaround_days }} days</div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="card-footer bg-transparent">
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('public.package_detail', package_id=package.id) }}" 
+                                   class="btn btn-outline-primary">View Details</a>
+                                <a href="{{ url_for('public.request_quote') }}?service={{ service_type }}&package={{ package.name }}" 
+                                   class="btn btn-{% if package.popular %}warning{% else %}primary{% endif %}">
+                                   Choose {{ package.name }}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Custom Package Option -->
+            <div class="row mt-5">
+                <div class="col-lg-8 mx-auto">
+                    <div class="card border-2 border-primary">
+                        <div class="card-body text-center p-4">
+                            <h4 class="text-primary fw-bold mb-3">Need Something Different?</h4>
+                            <p class="text-muted mb-4">We can create a custom package tailored specifically to your {{ service_type.lower() }} needs.</p>
+                            <div class="d-flex gap-3 justify-content-center">
+                                <a href="{{ url_for('public.request_quote') }}?service={{ service_type }}" 
+                                   class="btn btn-primary">Request Custom Quote</a>
+                                <a href="tel:+65-1234-5678" class="btn btn-outline-primary">Call to Discuss</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    {% if not loop.last %}
+    <hr class="my-0">
+    {% endif %}
+    {% endfor %}
+{% else %}
+    <section class="py-5">
+        <div class="container">
+            <div class="text-center">
+                <div class="display-1 text-muted mb-4">📦</div>
+                <h3>Service Packages Coming Soon</h3>
+                <p class="text-muted mb-4">We're currently preparing our service packages. In the meantime, request a custom quote for your project.</p>
+                <a href="{{ url_for('public.request_quote') }}" class="btn btn-primary">Request Quote</a>
+            </div>
+        </div>
+    </section>
+{% endif %}
+
+<!-- Why Choose Packages -->
+<section class="bg-light py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold">Why Choose Our Packages?</h2>
+            <p class="lead text-muted">Transparent pricing and comprehensive services designed around your needs</p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-3 col-md-6 text-center">
+                <i class="bi bi-cash-coin display-1 text-primary mb-3"></i>
+                <h5 class="fw-bold">Transparent Pricing</h5>
+                <p class="text-muted">No hidden fees or surprise charges. What you see is what you pay.</p>
+            </div>
+            <div class="col-lg-3 col-md-6 text-center">
+                <i class="bi bi-tools display-1 text-primary mb-3"></i>
+                <h5 class="fw-bold">All-Inclusive</h5>
+                <p class="text-muted">Everything you need in one package - equipment, editing, and delivery.</p>
+            </div>
+            <div class="col-lg-3 col-md-6 text-center">
+                <i class="bi bi-lightning-fill display-1 text-primary mb-3"></i>
+                <h5 class="fw-bold">Quick Turnaround</h5>
+                <p class="text-muted">Fast delivery without compromising on quality or attention to detail.</p>
+            </div>
+            <div class="col-lg-3 col-md-6 text-center">
+                <i class="bi bi-star-fill display-1 text-primary mb-3"></i>
+                <h5 class="fw-bold">Quality Guarantee</h5>
+                <p class="text-muted">100% satisfaction guarantee or we'll make it right at no extra cost.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

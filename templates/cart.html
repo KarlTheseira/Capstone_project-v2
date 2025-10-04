@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Cart · Flash Studio{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <h1 class="h3 mb-4">Your Cart</h1>
+
+  {% if items and items|length > 0 %}
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead class="table-light">
+        <tr>
+          <th style="min-width: 260px;">Item</th>
+          <th>Options</th>
+          <th class="text-end">Unit</th>
+          <th style="width: 220px;">Qty</th>
+          <th class="text-end">Subtotal</th>
+          <th class="text-center" style="width: 110px;">Remove</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+        <tr>
+          <!-- Item (image + title) -->
+          <td>
+            <div class="d-flex align-items-center gap-3">
+              {% if it.image %}
+                <img
+                  src="{{ url_for('static', filename='uploads/' ~ it.image) }}"
+                  alt="{{ it.title }}"
+                  style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;"
+                >
+              {% else %}
+                <img
+                  src="{{ url_for('static', filename='images/placeholder.jpg') }}"
+                  alt="{{ it.title }}"
+                  style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;"
+                >
+              {% endif %}
+              <div class="fw-semibold">{{ it.title }}</div>
+            </div>
+          </td>
+
+          <!-- Options -->
+          <td>
+            <div class="text-muted small">
+              {{ it.size }} · {{ it.frame }}
+            </div>
+          </td>
+
+          <!-- Unit price -->
+          <td class="text-end">
+            S$ {{ '%.2f' % (it.unit_price_cents / 100.0) }}
+          </td>
+
+          <!-- Quantity controls -->
+          <td>
+            <div class="d-flex align-items-center" style="max-width:180px;">
+              <form class="cart-dec-form me-1" data-item-idx="{{ it.idx }}">
+                <button class="btn btn-outline-secondary btn-sm cart-btn" type="submit" aria-label="decrease" data-action="decrease" style="width: 30px; height: 30px; padding: 0; font-size: 16px; line-height: 1;">
+                  <span class="btn-text">−</span>
+                  <span class="btn-spinner spinner-border spinner-border-sm d-none" role="status"></span>
+                </button>
+              </form>
+              <div class="px-2 text-center cart-qty" data-item-idx="{{ it.idx }}" style="min-width: 2rem;">{{ it.qty }}</div>
+              <form class="cart-inc-form ms-1" data-item-idx="{{ it.idx }}">
+                <button class="btn btn-outline-secondary btn-sm cart-btn" type="submit" aria-label="increase" data-action="increase" style="width: 30px; height: 30px; padding: 0; font-size: 16px; line-height: 1;">
+                  <span class="btn-text">+</span>
+                  <span class="btn-spinner spinner-border spinner-border-sm d-none" role="status"></span>
+                </button>
+              </form>
+            </div>
+          </td>
+
+          <!-- Subtotal -->
+          <td class="text-end">
+            <span class="cart-subtotal" data-item-idx="{{ it.idx }}">S$ {{ '%.2f' % (it.subtotal_cents / 100.0) }}</span>
+          </td>
+
+          <!-- Remove -->
+          <td class="text-center">
+            <form class="cart-remove-form" data-item-idx="{{ it.idx }}">
+              <button class="btn btn-outline-danger btn-sm cart-btn" type="submit" data-action="remove">
+                <span class="btn-text">Remove</span>
+                <span class="btn-spinner spinner-border spinner-border-sm d-none" role="status"></span>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+
+      <!-- Total row -->
+      <tfoot>
+        <tr>
+          <th colspan="4" class="text-end">Total</th>
+          <th class="text-end">
+            <span id="cart-total">S$ {{ '%.2f' % (total / 100.0) }}</span>
+          </th>
+          <th></th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="d-flex justify-content-between mt-4">
+    <a href="{{ url_for('public.shop') }}" class="btn btn-outline-primary">Continue Shopping</a>
+    <a href="{{ url_for('public.checkout') }}" class="btn btn-primary px-4">Proceed to Checkout</a>
+  </div>
+
+  {% else %}
+
+  <!-- Empty state -->
+  <div class="text-center py-5">
+    <h2 class="h4 mb-2">Your cart is empty</h2>
+    <p class="text-muted mb-4">Browse our collections and add something you love.</p>
+    <a class="btn btn-primary" href="{{ url_for('public.shop') }}">Shop Prints</a>
+  </div>
+
+  {% endif %}
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Handle cart increment/decrement forms
+  document.querySelectorAll('.cart-inc-form, .cart-dec-form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const itemIdx = this.dataset.itemIdx;
+      const action = this.querySelector('[data-action]').dataset.action;
+      const endpoint = action === 'increase' ? `/cart/inc/${itemIdx}` : `/cart/dec/${itemIdx}`;
+      
+      updateCart(this, endpoint, itemIdx);
+    });
+  });
+
+  // Handle remove forms
+  document.querySelectorAll('.cart-remove-form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const itemIdx = this.dataset.itemIdx;
+      const endpoint = `/cart/del/${itemIdx}`;
+      
+      updateCart(this, endpoint, itemIdx, true);
+    });
+  });
+
+  function updateCart(form, endpoint, itemIdx, isRemove = false) {
+    const button = form.querySelector('.cart-btn');
+    const btnText = button.querySelector('.btn-text');
+    const spinner = button.querySelector('.btn-spinner');
+    
+    // Show loading state
+    button.disabled = true;
+    btnText.classList.add('d-none');
+    spinner.classList.remove('d-none');
+    
+    fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        if (isRemove) {
+          // Remove the entire row
+          const row = form.closest('tr');
+          row.remove();
+          
+          // Show toast notification
+          showToast(`${data.removed_item} removed from cart`, 'success');
+          
+          // Check if cart is empty
+          if (data.cart_empty) {
+            location.reload(); // Reload to show empty cart state
+          }
+        } else {
+          // Update quantity and subtotal
+          const qtyElement = document.querySelector(`.cart-qty[data-item-idx="${itemIdx}"]`);
+          const subtotalElement = document.querySelector(`.cart-subtotal[data-item-idx="${itemIdx}"]`);
+          
+          if (qtyElement) qtyElement.textContent = data.qty;
+          if (subtotalElement) subtotalElement.textContent = `S$ ${(data.subtotal / 100).toFixed(2)}`;
+          
+          // Show toast notification
+          showToast(`Quantity updated`, 'success');
+        }
+        
+        // Update total and cart count
+        document.getElementById('cart-total').textContent = `S$ ${(data.total / 100).toFixed(2)}`;
+        
+        // Update cart count in navigation if it exists
+        const cartCountElement = document.querySelector('.cart-count');
+        if (cartCountElement) {
+          cartCountElement.textContent = data.cart_count;
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Error updating cart:', error);
+      showToast('Error updating cart', 'danger');
+    })
+    .finally(() => {
+      // Restore button state
+      button.disabled = false;
+      btnText.classList.remove('d-none');
+      spinner.classList.add('d-none');
+    });
+  }
+  
+  function showToast(message, type = 'success') {
+    // This will be implemented in the toast notification system
+    if (window.showToast) {
+      window.showToast(message, type);
+    } else {
+      // Fallback to console for now
+      console.log(`Toast: ${message} (${type})`);
+    }
+  }
+});
+</script>
+
+{% endblock %}

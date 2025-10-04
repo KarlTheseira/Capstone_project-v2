@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Quote Request #{{ quote.id }} - Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Quote Request #{{ quote.id }}</h1>
+    <a href="{{ url_for('admin.quotes') }}" class="btn btn-outline-primary">← Back to Quotes</a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Quote Details -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-fill me-2"></i>Client Information
+                    {% if quote.urgent %}
+                    <span class="badge bg-danger ms-2">URGENT</span>
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-muted">Contact Details</h6>
+                        <p class="mb-1"><strong>Name:</strong> {{ quote.name }}</p>
+                        <p class="mb-1"><strong>Email:</strong> 
+                            <a href="mailto:{{ quote.email }}">{{ quote.email }}</a>
+                        </p>
+                        {% if quote.phone %}
+                        <p class="mb-1"><strong>Phone:</strong> 
+                            <a href="tel:{{ quote.phone }}">{{ quote.phone }}</a>
+                        </p>
+                        {% endif %}
+                        {% if quote.company %}
+                        <p class="mb-1"><strong>Company:</strong> {{ quote.company }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-muted">Project Details</h6>
+                        <p class="mb-1"><strong>Service:</strong> 
+                            <span class="badge bg-primary">{{ quote.service_type }}</span>
+                        </p>
+                        {% if quote.budget_range %}
+                        <p class="mb-1"><strong>Budget Range:</strong> {{ quote.budget_range }}</p>
+                        {% endif %}
+                        {% if quote.event_date %}
+                        <p class="mb-1"><strong>Event Date:</strong> {{ quote.event_date.strftime('%B %d, %Y') }}</p>
+                        {% endif %}
+                        {% if quote.event_location %}
+                        <p class="mb-1"><strong>Location:</strong> {{ quote.event_location }}</p>
+                        {% endif %}
+                        <p class="mb-1"><strong>Submitted:</strong> {{ quote.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project Description -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-file-text-fill me-2"></i>Project Description</h5>
+            </div>
+            <div class="card-body">
+                <p>{{ quote.project_description|replace('\n', '<br>')|safe }}</p>
+                
+                {% if quote.additional_services %}
+                <h6 class="fw-bold mt-3">Additional Services:</h6>
+                <p>{{ quote.additional_services|replace('\n', '<br>')|safe }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Quote Management -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-gear-fill me-2"></i>Quote Management</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.quote_detail', quote_id=quote.id) }}">
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="pending" {% if quote.status == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="responded" {% if quote.status == 'responded' %}selected{% endif %}>Responded</option>
+                            <option value="quoted" {% if quote.status == 'quoted' %}selected{% endif %}>Quoted</option>
+                            <option value="closed" {% if quote.status == 'closed' %}selected{% endif %}>Closed</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="quote_amount" class="form-label">Quote Amount ($)</label>
+                        <input type="number" class="form-control" id="quote_amount" name="quote_amount" 
+                               step="0.01" min="0" 
+                               value="{% if quote.quote_amount %}{{ quote.quote_amount / 100 }}{% endif %}">
+                        <div class="form-text">Enter the quoted price for this project</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="admin_notes" class="form-label">Internal Notes</label>
+                        <textarea class="form-control" id="admin_notes" name="admin_notes" 
+                                  rows="4" placeholder="Notes for internal use...">{{ quote.admin_notes or '' }}</textarea>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle-fill me-2"></i>Update Quote
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightning-fill me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="mailto:{{ quote.email }}?subject=Re: Quote Request - {{ quote.service_type }}&body=Dear {{ quote.name }},%0A%0AThank you for your quote request for {{ quote.service_type }}.%0A%0A" 
+                       class="btn btn-outline-primary">
+                        <i class="bi bi-envelope-fill me-2"></i>Email Client
+                    </a>
+                    
+                    {% if quote.phone %}
+                    <a href="tel:{{ quote.phone }}" class="btn btn-outline-success">
+                        <i class="bi bi-phone-fill me-2"></i>Call Client
+                    </a>
+                    {% endif %}
+                    
+                    <button class="btn btn-outline-info" onclick="copyQuoteDetails()">
+                        <i class="bi bi-clipboard-fill me-2"></i>Copy Details
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyQuoteDetails() {
+    var details = `Quote Request #{{ quote.id }}
+Client: {{ quote.name }}
+Email: {{ quote.email }}
+{% if quote.phone %}Phone: {{ quote.phone }}{% endif %}
+Service: {{ quote.service_type }}
+{% if quote.event_date %}Event Date: {{ quote.event_date.strftime('%B %d, %Y') }}{% endif %}
+{% if quote.budget_range %}Budget: {{ quote.budget_range }}{% endif %}
+
+Project Description:
+{{ quote.project_description }}`;
+
+    navigator.clipboard.writeText(details).then(function() {
+        alert('Quote details copied to clipboard!');
+    });
+}
+</script>
+{% endblock %}

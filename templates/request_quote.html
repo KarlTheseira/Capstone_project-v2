@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Request Quote - Flash Digital Studio{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="text-center mb-5">
+                <h1 class="display-5 fw-bold text-primary">Request a Quote</h1>
+                <p class="lead text-muted">Tell us about your project and we'll provide you with a detailed quote within 24 hours.</p>
+            </div>
+
+            <div class="card shadow border-0">
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('public.request_quote') }}">
+                        <div class="row g-3">
+                            <!-- Contact Information -->
+                            <div class="col-12">
+                                <h5 class="fw-bold text-primary mb-3">
+                                    <i class="bi bi-person-fill me-2"></i>Contact Information
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="name" class="form-label">Full Name *</label>
+                                <input type="text" class="form-control" id="name" name="name" 
+                                       value="{{ form_data.name if form_data else '' }}" required>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">Email Address *</label>
+                                <input type="email" class="form-control" id="email" name="email" 
+                                       value="{{ form_data.email if form_data else '' }}" required>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" id="phone" name="phone" 
+                                       value="{{ form_data.phone if form_data else '' }}">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="company" class="form-label">Company/Organization</label>
+                                <input type="text" class="form-control" id="company" name="company" 
+                                       value="{{ form_data.company if form_data else '' }}">
+                            </div>
+
+                            <!-- Project Details -->
+                            <div class="col-12 mt-4">
+                                <h5 class="fw-bold text-primary mb-3">
+                                    <i class="bi bi-camera-video-fill me-2"></i>Project Details
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="service_type" class="form-label">Service Type *</label>
+                                <select class="form-select" id="service_type" name="service_type" required>
+                                    <option value="">Select a service</option>
+                                    {% for category in categories %}
+                                    <option value="{{ category }}" 
+                                            {% if selected_service == category or (form_data and form_data.service_type == category) %}selected{% endif %}>
+                                        {{ category }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="budget_range" class="form-label">Budget Range</label>
+                                <select class="form-select" id="budget_range" name="budget_range">
+                                    <option value="">Select budget range</option>
+                                    <option value="Under $500" {% if form_data and form_data.budget_range == "Under $500" %}selected{% endif %}>Under $500</option>
+                                    <option value="$500 - $1,000" {% if form_data and form_data.budget_range == "$500 - $1,000" %}selected{% endif %}>$500 - $1,000</option>
+                                    <option value="$1,000 - $2,500" {% if form_data and form_data.budget_range == "$1,000 - $2,500" %}selected{% endif %}>$1,000 - $2,500</option>
+                                    <option value="$2,500 - $5,000" {% if form_data and form_data.budget_range == "$2,500 - $5,000" %}selected{% endif %}>$2,500 - $5,000</option>
+                                    <option value="$5,000 - $10,000" {% if form_data and form_data.budget_range == "$5,000 - $10,000" %}selected{% endif %}>$5,000 - $10,000</option>
+                                    <option value="Over $10,000" {% if form_data and form_data.budget_range == "Over $10,000" %}selected{% endif %}>Over $10,000</option>
+                                </select>
+                            </div>
+
+                            <!-- Event Details (conditional) -->
+                            <div class="col-md-6">
+                                <label for="event_date" class="form-label">Event/Project Date</label>
+                                <input type="date" class="form-control" id="event_date" name="event_date" 
+                                       value="{{ form_data.event_date if form_data else '' }}">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="event_location" class="form-label">Location</label>
+                                <input type="text" class="form-control" id="event_location" name="event_location" 
+                                       placeholder="Event location or venue"
+                                       value="{{ form_data.event_location if form_data else '' }}">
+                            </div>
+
+                            <div class="col-12">
+                                <label for="project_description" class="form-label">Project Description *</label>
+                                <textarea class="form-control" id="project_description" name="project_description" 
+                                          rows="4" placeholder="Please describe your project, vision, specific requirements, and any important details..." required>{{ form_data.project_description if form_data else '' }}</textarea>
+                                <div class="form-text">Include details about duration, number of guests, special requirements, etc.</div>
+                            </div>
+
+                            <div class="col-12">
+                                <label for="additional_services" class="form-label">Additional Services</label>
+                                <textarea class="form-control" id="additional_services" name="additional_services" 
+                                          rows="2" placeholder="Any additional services or special requests...">{{ form_data.additional_services if form_data else '' }}</textarea>
+                            </div>
+
+                            <!-- Priority -->
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="urgent" name="urgent" 
+                                           {% if form_data and form_data.urgent %}checked{% endif %}>
+                                    <label class="form-check-label" for="urgent">
+                                        <strong>Urgent Request</strong> - I need a quote within 24 hours
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-12 mt-4">
+                                <div class="d-flex gap-3 justify-content-end">
+                                    <a href="{{ url_for('public.corporate_services') }}" class="btn btn-outline-secondary">
+                                        <i class="bi bi-arrow-left me-2"></i>Back to Services
+                                    </a>
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="bi bi-send-fill me-2"></i>Submit Quote Request
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Additional Information -->
+            <div class="row mt-5">
+                <div class="col-lg-4 text-center mb-4">
+                    <div class="card border-0 h-100">
+                        <div class="card-body">
+                            <i class="bi bi-clock-fill text-primary mb-3" style="font-size: 2.5rem;"></i>
+                            <h5 class="fw-bold">Quick Response</h5>
+                            <p class="text-muted">We respond to all quote requests within 24 hours, usually much sooner.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 text-center mb-4">
+                    <div class="card border-0 h-100">
+                        <div class="card-body">
+                            <i class="bi bi-shield-check-fill text-primary mb-3" style="font-size: 2.5rem;"></i>
+                            <h5 class="fw-bold">No Obligation</h5>
+                            <p class="text-muted">Getting a quote is completely free with no commitment required.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 text-center mb-4">
+                    <div class="card border-0 h-100">
+                        <div class="card-body">
+                            <i class="bi bi-award-fill text-primary mb-3" style="font-size: 2.5rem;"></i>
+                            <h5 class="fw-bold">Custom Packages</h5>
+                            <p class="text-muted">Every quote is tailored to your specific needs and requirements.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Alternative -->
+            <div class="text-center mt-5">
+                <div class="card bg-light border-0">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-3">Prefer to Talk Directly?</h5>
+                        <p class="text-muted mb-3">Call us for an immediate consultation</p>
+                        <div class="d-flex gap-3 justify-content-center">
+                            <a href="tel:+65-1234-5678" class="btn btn-primary">
+                                <i class="bi bi-phone-fill me-2"></i>+65 1234 5678
+                            </a>
+                            <a href="mailto:info@flashdigitalstudio.com" class="btn btn-outline-primary">
+                                <i class="bi bi-envelope-fill me-2"></i>Email Us
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Show/hide event-specific fields based on service type
+document.getElementById('service_type').addEventListener('change', function() {
+    var serviceType = this.value;
+    var eventFields = document.querySelectorAll('.event-specific');
+    
+    // Show event fields for wedding, event photography, and live streaming
+    var showEventFields = ['Wedding Videography', 'Event Photography', 'Live Streaming'].includes(serviceType);
+    
+    eventFields.forEach(function(field) {
+        if (showEventFields) {
+            field.style.display = 'block';
+        } else {
+            field.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}

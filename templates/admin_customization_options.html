@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Manage Customization Options · Admin · Flash Studio{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h4 mb-0">Manage Customization Options</h1>
+  <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Back to Dashboard
+  </a>
+</div>
+
+<div class="row">
+  <!-- Size Options -->
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Print Size Options</h5>
+      </div>
+      <div class="card-body">
+        <!-- Existing Size Options -->
+        <div class="mb-3">
+          <label class="form-label">Current Options</label>
+          {% for size, price in size_options.items() %}
+          <div class="d-flex justify-content-between align-items-center p-2 border rounded mb-2">
+            <span>{{ size }} {% if price %}(+S$ {{ '%.2f' % (price/100.0) }}){% endif %}</span>
+            <form method="post" class="d-inline">
+              <input type="hidden" name="action" value="delete_size">
+              <input type="hidden" name="size_to_delete" value="{{ size }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger" 
+                      onclick="return confirm('Delete this size option?')">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Add New Size Option -->
+        <form method="post" class="border-top pt-3">
+          <input type="hidden" name="action" value="add_size">
+          <div class="row g-2">
+            <div class="col-8">
+              <input type="text" class="form-control form-control-sm" 
+                     name="size_name" placeholder="e.g., 50cm x 70cm" required>
+            </div>
+            <div class="col-4">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">S$</span>
+                <input type="number" class="form-control" name="size_price" 
+                       step="0.01" min="0" placeholder="0.00">
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-sm btn-primary mt-2">
+            <i class="bi bi-plus"></i> Add Size Option
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Frame Options -->
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Frame Options</h5>
+      </div>
+      <div class="card-body">
+        <!-- Existing Frame Options -->
+        <div class="mb-3">
+          <label class="form-label">Current Options</label>
+          {% for frame, price in frame_options.items() %}
+          <div class="d-flex justify-content-between align-items-center p-2 border rounded mb-2">
+            <span>{{ frame }} {% if price %}(+S$ {{ '%.2f' % (price/100.0) }}){% endif %}</span>
+            <form method="post" class="d-inline">
+              <input type="hidden" name="action" value="delete_frame">
+              <input type="hidden" name="frame_to_delete" value="{{ frame }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger" 
+                      onclick="return confirm('Delete this frame option?')">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Add New Frame Option -->
+        <form method="post" class="border-top pt-3">
+          <input type="hidden" name="action" value="add_frame">
+          <div class="row g-2">
+            <div class="col-8">
+              <input type="text" class="form-control form-control-sm" 
+                     name="frame_name" placeholder="e.g., Silver, Gold" required>
+            </div>
+            <div class="col-4">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">S$</span>
+                <input type="number" class="form-control" name="frame_price" 
+                       step="0.01" min="0" placeholder="0.00">
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-sm btn-primary mt-2">
+            <i class="bi bi-plus"></i> Add Frame Option
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-body">
+    <h6>Important Notes:</h6>
+    <ul class="mb-0 small text-muted">
+      <li>Changes to global options will affect all products that use these options</li>
+      <li>You can configure which options are available for each product in the product edit page</li>
+      <li>Price additions are applied on top of the base product price</li>
+      <li>Deleting an option that's currently used by products may cause issues</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}{{ product.title }} · Flash Studio{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row g-5">
+    <!-- Media -->
+    <div class="col-12 col-lg-7">
+      {% if product.media_key %}
+        <img
+          class="w-100 rounded shadow-sm"
+          src="{{ url_for('static', filename='uploads/' ~ product.media_key) }}"
+          alt="{{ product.title }}"
+        >
+      {% else %}
+        <img
+          class="w-100 rounded shadow-sm"
+          src="{{ url_for('static', filename='images/placeholder.jpg') }}"
+          alt="{{ product.title }}"
+        >
+      {% endif %}
+    </div>
+
+    <!-- Details + purchase -->
+    <div class="col-12 col-lg-5">
+      <div class="d-flex flex-column gap-2">
+        {% if product.category %}
+          <small class="text-muted">{{ product.category }}</small>
+        {% endif %}
+
+        <h1 class="h3 mb-1">{{ product.title }}</h1>
+
+        <!-- Live total (changes with options/qty) -->
+        <div class="fs-5 fw-semibold" id="priceDisplay">
+          S$ {{ '%.2f' % (product.price_cents / 100.0) }}
+        </div>
+
+        <p class="text-muted mt-2">
+          {{ product.description or "Fine art print from Flash Studio." }}
+        </p>
+
+        <!-- Add to cart -->
+        <form method="post" action="{{ url_for('public.product', product_id=product.id) }}" class="mt-3" id="buyForm" novalidate>
+          <!-- Print Size -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="sizeSelect">Print Size</label>
+            <select class="form-select" name="size" id="sizeSelect" aria-label="Print size">
+              {% for label, addon in size_options.items() %}
+                <option value="{{ label }}" data-add="{{ addon }}">
+                  {{ label }}{% if addon %} (+S$ {{ '%.2f' % (addon/100.0) }}){% endif %}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Frame -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="frameSelect">Frame</label>
+            <select class="form-select" name="frame" id="frameSelect" aria-label="Frame option">
+              {% for label, addon in frame_options.items() %}
+                <option value="{{ label }}" data-add="{{ addon }}">
+                  {{ label }}{% if addon %} (+S$ {{ '%.2f' % (addon/100.0) }}){% endif %}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Quantity -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="qtyInput">Quantity</label>
+            <div class="input-group" style="max-width: 220px;">
+              <button class="btn btn-outline-secondary" type="button" id="btnMinus" aria-label="Decrease quantity">-</button>
+              <input
+                class="form-control text-center"
+                name="qty"
+                id="qtyInput"
+                type="number"
+                value="1"
+                min="1"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                aria-live="polite"
+              >
+              <button class="btn btn-outline-secondary" type="button" id="btnPlus" aria-label="Increase quantity">+</button>
+            </div>
+          </div>
+
+          <button class="btn btn-primary w-100 py-2 add-to-cart-btn" type="submit">
+            <span class="btn-text">Add To Cart</span>
+            <span class="btn-spinner spinner-border spinner-border-sm d-none" role="status"></span>
+          </button>
+        </form>
+
+        <div class="small text-muted mt-3">
+          * Framed previews are illustrative. Exact frame proportions may vary slightly by size.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const base = {{ product.price_cents|int }};
+    const sizeSel  = document.getElementById('sizeSelect');
+    const frameSel = document.getElementById('frameSelect');
+    const qtyInput = document.getElementById('qtyInput');
+    const priceEl  = document.getElementById('priceDisplay');
+    const minusBtn = document.getElementById('btnMinus');
+    const plusBtn  = document.getElementById('btnPlus');
+    const buyForm = document.getElementById('buyForm');
+
+    function fmt(cents) { return 'S$ ' + (cents/100).toFixed(2); }
+
+    function recalc() {
+      const sizeAdd  = parseInt(sizeSel.selectedOptions[0].dataset.add || '0', 10);
+      const frameAdd = parseInt(frameSel.selectedOptions[0].dataset.add || '0', 10);
+      const qty      = Math.max(1, parseInt(qtyInput.value || '1', 10));
+
+      const unit  = base + sizeAdd + frameAdd;
+      const total = unit * qty;
+      priceEl.textContent = fmt(total);
+    }
+
+    function clampQty() {
+      const n = parseInt(qtyInput.value || '1', 10);
+      qtyInput.value = isNaN(n) || n < 1 ? 1 : n;
+    }
+
+    // Add AJAX form submission
+    buyForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const button = this.querySelector('.add-to-cart-btn');
+      const btnText = button.querySelector('.btn-text');
+      const spinner = button.querySelector('.btn-spinner');
+      
+      // Show loading state
+      button.disabled = true;
+      btnText.classList.add('d-none');
+      spinner.classList.remove('d-none');
+      
+      // Prepare form data
+      const formData = new FormData(this);
+      
+      fetch(this.action, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          size: formData.get('size'),
+          frame: formData.get('frame'),
+          qty: formData.get('qty')
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Update cart count in navigation if it exists
+          const cartCountElement = document.querySelector('.cart-count');
+          if (cartCountElement) {
+            cartCountElement.textContent = data.cart_count;
+          }
+          
+          // Show success toast
+          if (window.showToast) {
+            window.showToast(data.message, 'success');
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Error adding to cart:', error);
+        if (window.showToast) {
+          window.showToast('Error adding item to cart', 'danger');
+        }
+      })
+      .finally(() => {
+        // Restore button state
+        button.disabled = false;
+        btnText.classList.remove('d-none');
+        spinner.classList.add('d-none');
+      });
+    });
+
+    sizeSel.addEventListener('change', recalc);
+    frameSel.addEventListener('change', recalc);
+    qtyInput.addEventListener('input', () => { clampQty(); recalc(); });
+    minusBtn.addEventListener('click', () => { qtyInput.value = Math.max(1, parseInt(qtyInput.value||'1',10) - 1); recalc(); });
+    plusBtn.addEventListener('click',  () => { qtyInput.value = Math.max(1, parseInt(qtyInput.value||'1',10) + 1); recalc(); });
+
+    // Initial paint
+    clampQty();
+    recalc();
+  })();
+</script>
+{% endblock %}

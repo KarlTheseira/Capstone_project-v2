@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flashstudio-monolith
+  namespace: flash
+  labels:
+    app: flashstudio-monolith
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  progressDeadlineSeconds: 600
+  selector:
+    matchLabels:
+      app: flashstudio-monolith
+  template:
+    metadata:
+      labels:
+        app: flashstudio-monolith
+    spec:
+      # imagePullSecrets only needed if you didn't attach ACR to AKS
+      # imagePullSecrets:
+      #   - name: acr-pull
+      containers:
+        - name: web
+          image: flashstudiomain.azurecr.io/flashstudio/monolith:v2
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+
+          # --- Google Drive Storage wiring ---
+          # Pull Google Drive credentials from secrets
+          env:
+            - name: GOOGLE_DRIVE_CREDENTIALS_JSON
+              valueFrom:
+                secretKeyRef:
+                  name: google-drive-secrets
+                  key: GOOGLE_DRIVE_CREDENTIALS_JSON
+            - name: GOOGLE_DRIVE_FOLDER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: google-drive-secrets
+                  key: GOOGLE_DRIVE_FOLDER_ID
+
+            # Existing app envs
+            - name: FLASK_ENV
+              value: "production"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: flashstudio-secrets
+                  key: DATABASE_URL
+
+            # Stripe payment configuration
+            - name: STRIPE_PUBLISHABLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: stripe-secrets
+                  key: STRIPE_PUBLISHABLE_KEY
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: stripe-secrets
+                  key: STRIPE_SECRET_KEY
+            - name: STRIPE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: stripe-secrets
+                  key: STRIPE_WEBHOOK_SECRET
+
+            # Payment configuration
+            - name: CURRENCY
+              value: "sgd"
+            - name: PAYMENT_SUCCESS_URL
+              value: "/payment-success"
+            - name: PAYMENT_CANCEL_URL
+              value: "/cart"
+
+          # Resource limits
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+          # ---- Health probes against /healthz on port 8000 ----
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 12
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+
+          # Give the app a little time to boot first
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            failureThreshold: 30
+            periodSeconds: 5
+
+      terminationGracePeriodSeconds: 30

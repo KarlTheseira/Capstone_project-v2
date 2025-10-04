@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}Service Packages - Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Service Packages</h1>
+    <div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPackageModal">
+            <i class="bi bi-plus-circle me-2"></i>Add Package
+        </button>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-primary">← Dashboard</a>
+    </div>
+</div>
+
+<!-- Packages by Service Type -->
+{% if packages %}
+    {% set current_service = namespace(value='') %}
+    {% for package in packages %}
+        {% if package.service_type != current_service.value %}
+            {% if current_service.value != '' %}
+                </div></div>
+            {% endif %}
+            {% set current_service.value = package.service_type %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">{{ package.service_type }} Packages</h5>
+                </div>
+                <div class="row g-3 p-3">
+        {% endif %}
+        
+        <div class="col-md-4">
+            <div class="card h-100 {% if package.popular %}border-warning{% else %}border-light{% endif %}">
+                {% if package.popular %}
+                <div class="card-header bg-warning text-dark text-center py-1">
+                    <small class="fw-bold">POPULAR</small>
+                </div>
+                {% endif %}
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title fw-bold text-primary">{{ package.name }}</h6>
+                        {% if not package.active %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="h4 text-success mb-3">${{ package.price_cents // 100 }}</div>
+                    
+                    {% if package.description %}
+                    <p class="card-text text-muted small">{{ package.description }}</p>
+                    {% endif %}
+                    
+                    {% if package.features %}
+                    <div class="mb-3">
+                        <h6 class="small fw-bold">Features:</h6>
+                        <ul class="small list-unstyled">
+                            {% set features_list = package.features|safe %}
+                            {% if '[' in features_list %}
+                                {% for feature in features_list[1:-1].replace('"', '').split(', ') %}
+                                <li><i class="bi bi-check-circle-fill text-success me-1"></i>{{ feature }}</li>
+                                {% endfor %}
+                            {% else %}
+                                <li><i class="bi bi-check-circle-fill text-success me-1"></i>{{ features_list }}</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="row text-center">
+                        {% if package.max_hours %}
+                        <div class="col-6">
+                            <small class="text-muted">Max Hours</small>
+                            <div class="fw-bold">{{ package.max_hours }}</div>
+                        </div>
+                        {% endif %}
+                        {% if package.turnaround_days %}
+                        <div class="col-6">
+                            <small class="text-muted">Turnaround</small>
+                            <div class="fw-bold">{{ package.turnaround_days }} days</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary flex-fill" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#editPackageModal{{ package.id }}">
+                            Edit
+                        </button>
+                        <form method="POST" action="{{ url_for('admin.delete_package', package_id=package.id) }}" 
+                              class="d-inline" onsubmit="return confirm('Delete this package?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if loop.last %}
+            </div></div>
+        {% endif %}
+    {% endfor %}
+{% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-box-seam display-1 text-muted"></i>
+        <h4 class="mt-3">No Service Packages</h4>
+        <p class="text-muted">Create service packages to offer predefined pricing tiers.</p>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPackageModal">
+            <i class="bi bi-plus-circle me-2"></i>Create First Package
+        </button>
+    </div>
+{% endif %}
+
+<!-- Add Package Modal -->
+<div class="modal fade" id="addPackageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Service Package</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin.service_packages') }}">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Package Name</label>
+                            <input type="text" class="form-control" name="name" required 
+                                   placeholder="e.g., Basic, Premium, Enterprise">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Service Type</label>
+                            <select class="form-select" name="service_type" required>
+                                <option value="">Select service type</option>
+                                {% for category in categories %}
+                                <option value="{{ category }}">{{ category }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Price ($)</label>
+                            <input type="number" class="form-control" name="price" step="0.01" min="0" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Max Hours (optional)</label>
+                            <input type="number" class="form-control" name="max_hours" min="1">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" name="description" rows="2" 
+                                      placeholder="Brief package description"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Features (one per line)</label>
+                            <textarea class="form-control" name="features" rows="4" 
+                                      placeholder="Multi-camera setup&#10;Professional editing&#10;Online gallery&#10;Print ready files"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Deliverables</label>
+                            <textarea class="form-control" name="deliverables" rows="3" 
+                                      placeholder="What the client receives"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Turnaround (days)</label>
+                            <input type="number" class="form-control" name="turnaround_days" min="1">
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="popular" id="popular">
+                                <label class="form-check-label" for="popular">
+                                    Mark as Popular Package
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Package</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Convert textarea features to array format
+document.querySelector('form').addEventListener('submit', function(e) {
+    const featuresTextarea = document.querySelector('textarea[name="features"]');
+    if (featuresTextarea.value) {
+        const features = featuresTextarea.value.split('\n').filter(f => f.trim());
+        // Create hidden input for features array
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'features';
+        hiddenInput.value = JSON.stringify(features);
+        this.appendChild(hiddenInput);
+    }
+});
+</script>
+{% endblock %}

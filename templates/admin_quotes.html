@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Quote Requests - Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Quote Requests</h1>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-primary">← Back to Dashboard</a>
+</div>
+
+{% if quotes %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>Name</th>
+                <th>Service</th>
+                <th>Status</th>
+                <th>Budget</th>
+                <th>Event Date</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for quote in quotes %}
+            <tr>
+                <td>
+                    <div class="fw-bold">{{ quote.name }}</div>
+                    <small class="text-muted">{{ quote.email }}</small>
+                    {% if quote.company %}
+                    <br><small class="badge bg-secondary">{{ quote.company }}</small>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge bg-primary">{{ quote.service_type }}</span>
+                    {% if quote.urgent %}
+                    <br><span class="badge bg-danger">URGENT</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if quote.status == 'pending' %}
+                    <span class="badge bg-warning">Pending</span>
+                    {% elif quote.status == 'responded' %}
+                    <span class="badge bg-info">Responded</span>
+                    {% elif quote.status == 'quoted' %}
+                    <span class="badge bg-success">Quoted</span>
+                    {% elif quote.status == 'closed' %}
+                    <span class="badge bg-secondary">Closed</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if quote.budget_range %}
+                    {{ quote.budget_range }}
+                    {% else %}
+                    <span class="text-muted">Not specified</span>
+                    {% endif %}
+                    {% if quote.quote_amount %}
+                    <br><strong>${{ quote.quote_amount / 100 }}</strong>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if quote.event_date %}
+                    {{ quote.event_date.strftime('%Y-%m-%d') }}
+                    {% if quote.event_location %}
+                    <br><small class="text-muted">{{ quote.event_location }}</small>
+                    {% endif %}
+                    {% else %}
+                    <span class="text-muted">Not specified</span>
+                    {% endif %}
+                </td>
+                <td>{{ quote.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>
+                    <a href="{{ url_for('admin.quote_detail', quote_id=quote.id) }}" 
+                       class="btn btn-sm btn-primary">View Details</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="bi bi-inbox display-1 text-muted"></i>
+    <h4 class="mt-3">No Quote Requests</h4>
+    <p class="text-muted">Quote requests will appear here when customers submit them.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,123 @@
+# ==========================
+# Version Control
+# ==========================
+.git
+.gitignore
+.github
+
+# ==========================
+# Python / Flask Development
+# ==========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ==========================
+# Virtual Environments  
+# ==========================
+.venv/
+venv/
+env/
+ENV/
+
+# ==========================
+# Development Database
+# ==========================
+*.db
+*.sqlite3
+instance/
+
+# ==========================
+# Environment & Secrets
+# ==========================
+.env
+*.env
+.env.*
+google-drive-credentials.json
+*.key
+*.pem
+
+# ==========================
+# IDE / Editor files
+# ==========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==========================
+# OS / System files
+# ==========================
+.DS_Store
+Thumbs.db
+*.pid
+*.seed
+*.pid.lock
+
+# ==========================
+# Documentation & Guides
+# ==========================
+README.md
+*.md
+KUBERNETES_DEPLOYMENT.md
+AZURE_STORAGE_GUIDE.md
+GOOGLE_DRIVE_SETUP.md
+PRODUCTION_READINESS_REPORT.md
+ADVANCED_PAYMENT_FEATURES_COMPLETE.md
+MICROSERVICES_OPTION.md
+STRIPE_SETUP.md
+
+# ==========================
+# Development Scripts  
+# ==========================
+start_dev.sh
+deploy.sh
+setup-*.sh
+test_*.py
+create_sample_*.py
+migrate_*.py
+
+# ==========================
+# Testing
+# ==========================
+tests/
+test_*
+*_test.py
+run_*_tests.sh
+
+# ==========================
+# Build artifacts
+# ==========================
+build/
+dist/
+*.tar.gz
+*.whl
+*.zip
+
+# ==========================
+# Kubernetes & Deployment
+# ==========================
+k8-deploy/
+migrations/
+
+# ==========================
+# Temporary files
+# ==========================
+*.tmp
+*.log
+cookies.txt
+*.backup
+
+# ==========================
+# Node/Frontend (if any)
+# ==========================
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log

@@ -1,0 +1,72 @@
+name: CI/CD - Flash Studio to AKS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+env:
+  IMAGE_NAME: flashstudio/monolith
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # ---- Guardrails: fail fast if any secret missing ----
+    - name: Validate required secrets
+      run: |
+        test -n "${{ secrets.AZURE_CREDENTIALS }}" || (echo "AZURE_CREDENTIALS missing" && exit 1)
+        test -n "${{ secrets.ACR_LOGIN_SERVER }}"  || (echo "ACR_LOGIN_SERVER missing" && exit 1)
+        test -n "${{ secrets.RESOURCE_GROUP }}"    || (echo "RESOURCE_GROUP missing" && exit 1)
+        test -n "${{ secrets.AKS_CLUSTER_NAME }}"  || (echo "AKS_CLUSTER_NAME missing" && exit 1)
+        test -n "${{ secrets.NAMESPACE }}"         || (echo "NAMESPACE missing" && exit 1)
+
+    - name: Azure login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    # ---- Show which subscription/tenant we are in (debug) ----
+    - name: Show Azure context
+      run: |
+        az account show -o table
+        echo "ACR_LOGIN_SERVER=${{ secrets.ACR_LOGIN_SERVER }}"
+        echo "RG=${{ secrets.RESOURCE_GROUP }}  AKS=${{ secrets.AKS_CLUSTER_NAME }}  NS=${{ secrets.NAMESPACE }}"
+
+    # ---- Login to ACR using Azure session (no username/password needed) ----
+    - name: ACR login (via Azure)
+      run: |
+        ACR_NAME=$(echo "${{ secrets.ACR_LOGIN_SERVER }}" | cut -d. -f1)
+        echo "Logging into ACR: $ACR_NAME"
+        az acr login -n "$ACR_NAME"
+        az acr show -n "$ACR_NAME" -o table
+
+    - name: Build & push image to ACR
+      run: |
+        IMAGE_TAG=${GITHUB_SHA::7}
+        echo "Will build tag: $IMAGE_TAG"
+        docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG .
+        docker push  ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
+        echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+    - name: Set AKS context
+      uses: azure/aks-set-context@v4
+      with:
+        resource-group: ${{ secrets.RESOURCE_GROUP }}
+        cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
+
+    # (optional) ensure namespace exists
+    - name: Ensure namespace exists
+      run: |
+        kubectl get ns ${{ secrets.NAMESPACE }} >/dev/null 2>&1 || \
+        kubectl create ns ${{ secrets.NAMESPACE }}
+
+    - name: Deploy to AKS
+      run: |
+        kubectl -n ${{ secrets.NAMESPACE }} set image deployment/flashstudio-monolith \
+          web=${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
+        kubectl -n ${{ secrets.NAMESPACE }} rollout status deployment/flashstudio-monolith

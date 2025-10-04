@@ -1,0 +1,111 @@
+<!-- Quick view content -->
+<div class="modal-header">
+  <h5 class="modal-title">{{ product.title }}</h5>
+  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+  <div class="row g-4">
+    <!-- Image -->
+    <div class="col-lg-7">
+      {% if product.media_key %}
+        <img class="w-100 rounded"
+             src="{{ url_for('static', filename='uploads/' ~ product.media_key) }}"
+             alt="{{ product.title }}">
+      {% else %}
+        <img class="w-100 rounded"
+             src="{{ url_for('static', filename='images/placeholder.jpg') }}"
+             alt="{{ product.title }}">
+      {% endif %}
+    </div>
+
+    <!-- Quick purchase form -->
+    <div class="col-lg-5">
+      <form method="post" action="{{ url_for('public.product', product_id=product.id) }}" id="quickBuyForm">
+        <!-- Price -->
+        <div class="fs-4 fw-semibold mb-3" id="quickPriceDisplay">
+          S$ {{ '%.2f' % (product.price_cents / 100.0) }}
+        </div>
+
+        <!-- Print Size -->
+        <div class="mb-3">
+          <label class="form-label" for="quickSizeSelect">Print Size</label>
+          <select class="form-select" name="size" id="quickSizeSelect">
+            {% for label, addon in size_options.items() %}
+              <option value="{{ label }}" data-add="{{ addon }}">
+                {{ label }}{% if addon %} (+S$ {{ '%.2f' % (addon/100.0) }}){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Frame -->
+        <div class="mb-3">
+          <label class="form-label" for="quickFrameSelect">Frame</label>
+          <select class="form-select" name="frame" id="quickFrameSelect">
+            {% for label, addon in frame_options.items() %}
+              <option value="{{ label }}" data-add="{{ addon }}">
+                {{ label }}{% if addon %} (+S$ {{ '%.2f' % (addon/100.0) }}){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Quantity -->
+        <div class="mb-3">
+          <label class="form-label">Quantity</label>
+          <div class="input-group" style="max-width: 140px;">
+            <button class="btn btn-outline-secondary" type="button" onclick="updateQty(-1)">-</button>
+            <input class="form-control text-center" name="qty" type="number" value="1" min="1" id="quickQtyInput">
+            <button class="btn btn-outline-secondary" type="button" onclick="updateQty(1)">+</button>
+          </div>
+        </div>
+
+        <button class="btn btn-primary w-100" type="submit">Add to Cart</button>
+
+        <!-- View full details link -->
+        <div class="text-center mt-3">
+          <a href="{{ url_for('public.product', product_id=product.id) }}" class="small">
+            View full details
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Price calculation
+  (function() {
+    const base = {{ product.price_cents|int }};
+    const sizeSel  = document.getElementById('quickSizeSelect');
+    const frameSel = document.getElementById('quickFrameSelect');
+    const qtyInput = document.getElementById('quickQtyInput');
+    const priceEl  = document.getElementById('quickPriceDisplay');
+
+    function fmt(cents) { return 'S$ ' + (cents/100).toFixed(2); }
+
+    function recalc() {
+      const sizeAdd  = parseInt(sizeSel.selectedOptions[0].dataset.add || '0', 10);
+      const frameAdd = parseInt(frameSel.selectedOptions[0].dataset.add || '0', 10);
+      const qty = Math.max(1, parseInt(qtyInput.value || '1', 10));
+      const unit = base + sizeAdd + frameAdd;
+      const total = unit * qty;
+      priceEl.textContent = fmt(total);
+    }
+
+    sizeSel.addEventListener('change', recalc);
+    frameSel.addEventListener('change', recalc);
+    qtyInput.addEventListener('input', recalc);
+
+    // Initial calculation
+    recalc();
+  })();
+
+  // Quantity buttons
+  function updateQty(delta) {
+    const input = document.getElementById('quickQtyInput');
+    const newVal = Math.max(1, parseInt(input.value || '1', 10) + delta);
+    input.value = newVal;
+    input.dispatchEvent(new Event('input'));
+  }
+</script>
