@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flashstudio
+  labels:
+    app: flashstudio
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  progressDeadlineSeconds: 600
+  selector:
+    matchLabels:
+      app: flashstudio
+  template:
+    metadata:
+      labels:
+        app: flashstudio
+    spec:
+      containers:
+        - name: flashstudio
+          image: flashstudiomain.azurecr.io/flashstudio/monolith:v1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+
+          # Environment variables from secrets
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: flashstudio-secrets
+                  key: SECRET_KEY
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: flashstudio-secrets
+                  key: ADMIN_USERNAME
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: flashstudio-secrets
+                  key: ADMIN_PASSWORD
+            - name: STRIPE_PUBLISHABLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: flashstudio-secrets
+                  key: STRIPE_PUBLISHABLE_KEY
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: flashstudio-secrets
+                  key: STRIPE_SECRET_KEY
+            
+            # Optional environment variables
+            - name: FLASK_ENV
+              value: "production"
+            - name: CURRENCY
+              value: "sgd"
+            - name: PAYMENT_SUCCESS_URL
+              value: "/payment-success"
+            - name: PAYMENT_CANCEL_URL
+              value: "/cart"
+
+          # Resource limits
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+          # Health probes
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 12
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            failureThreshold: 30
+            periodSeconds: 5
+
+      terminationGracePeriodSeconds: 30
