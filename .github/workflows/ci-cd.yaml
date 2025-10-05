@@ -2,11 +2,7 @@ name: CI/CD - Flash Studio to AKS
 
 on:
   push:
-    branch    # Ensure namespace and secrets exist
-    - name: Setup namespace and secrets
-      run: |
-        # Create namespace if it doesn't exist
-        kubectl get ns ${{ secrets.NAMESPACE }} >/dev/null 2>&1 || kubectl create ns ${{ secrets.NAMESPACE }}main ]
+    branches: [ main ]
   workflow_dispatch: {}
 
 env:
@@ -67,7 +63,8 @@ jobs:
     - name: Setup namespace and secrets
       run: |
         # Create namespace if it doesn't exist
-        kubectl get ns ${{ secrets.NAMESPACE }} >/dev/null 2>&1 || kubectl create ns ${{ secrets.NAMESPACE }}
+        kubectl get ns ${{ secrets.NAMESPACE }} >/dev/null 2>&1 || \
+        kubectl create ns ${{ secrets.NAMESPACE }}
         
         # Create basic secrets if they don't exist (GitHub Actions will skip if they already exist)
         kubectl create secret generic flashstudio-secrets \
