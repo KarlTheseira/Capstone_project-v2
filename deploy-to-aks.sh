@@ -6,12 +6,13 @@
 
 set -e  # Exit on any error
 
-# Configuration Variables
+# Configuration Variables  
 RESOURCE_GROUP="flashstudio-rg"
 LOCATION="eastus"
 AKS_CLUSTER_NAME="flashstudio-aks"
-ACR_NAME="flashstudioregistry"
+ACR_NAME="flashstudiomain"
 APP_NAME="flashstudio"
+NAMESPACE="flash"
 NODE_COUNT=2
 
 echo "🚀 Starting FlashStudio AKS Deployment..."
@@ -99,31 +100,55 @@ echo "Pushing image to ACR..."
 docker push $IMAGE_TAG
 echo "✅ Docker image pushed to ACR"
 
-# Step 7: Update Kubernetes manifests with correct image
+# Step 7: Create namespace and update Kubernetes manifests  
 echo ""
-echo "📋 Step 7: Updating Kubernetes manifests"
+echo "📋 Step 7: Creating namespace and updating manifests"
+
+# Create namespace
+kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
 
 # Create temporary deployment file with correct image
-sed "s|flashstudiomain\.azurecr\.io/flashstudio/monolith:v1|$IMAGE_TAG|g" k8-deploy/deployment-simple.yaml > /tmp/deployment-updated.yaml
+sed "s|flashstudiomain\.azurecr\.io/flashstudio/monolith:latest|$IMAGE_TAG|g" k8-deploy/deployment.yaml > /tmp/deployment-updated.yaml
 
-echo "✅ Kubernetes manifests updated with ACR image"
+echo "✅ Namespace created and Kubernetes manifests updated"
 
 # Step 8: Create Kubernetes Secrets
 echo ""
 echo "📋 Step 8: Creating Kubernetes Secrets"
 
-# Check if secrets already exist
-if kubectl get secret flashstudio-secrets >/dev/null 2>&1; then
-    echo "✅ Secrets already exist"
+# Check if secrets already exist in the correct namespace
+if kubectl get secret flashstudio-secrets -n $NAMESPACE >/dev/null 2>&1; then
+    echo "✅ FlashStudio secrets already exist"
 else
-    echo "Creating Kubernetes secrets..."
+    echo "Creating flashstudio-secrets..."
     kubectl create secret generic flashstudio-secrets \
+        --from-literal=DATABASE_URL="sqlite:///filmcompany.db" \
         --from-literal=SECRET_KEY="$(openssl rand -base64 32)" \
-        --from-literal=ADMIN_USERNAME="admin" \
-        --from-literal=ADMIN_PASSWORD="secure_admin_password_$(openssl rand -hex 4)" \
-        --from-literal=STRIPE_PUBLISHABLE_KEY="pk_test_your_key_here" \
-        --from-literal=STRIPE_SECRET_KEY="sk_test_your_key_here"
-    echo "✅ Kubernetes secrets created"
+        --namespace=$NAMESPACE
+    echo "✅ FlashStudio secrets created"
+fi
+
+if kubectl get secret stripe-secrets -n $NAMESPACE >/dev/null 2>&1; then
+    echo "✅ Stripe secrets already exist"
+else
+    echo "⚠️  Creating placeholder Stripe secrets (you need to update these with real values)"
+    kubectl create secret generic stripe-secrets \
+        --from-literal=STRIPE_PUBLISHABLE_KEY="pk_test_replace_with_your_key" \
+        --from-literal=STRIPE_SECRET_KEY="sk_test_replace_with_your_key" \
+        --from-literal=STRIPE_WEBHOOK_SECRET="whsec_replace_with_your_secret" \
+        --namespace=$NAMESPACE
+    echo "✅ Placeholder Stripe secrets created"
+fi
+
+if kubectl get secret google-drive-secrets -n $NAMESPACE >/dev/null 2>&1; then
+    echo "✅ Google Drive secrets already exist"
+else
+    echo "⚠️  Creating placeholder Google Drive secrets (you need to update these)"
+    kubectl create secret generic google-drive-secrets \
+        --from-literal=GOOGLE_DRIVE_CREDENTIALS_JSON='{"type":"service_account","project_id":"replace-me"}' \
+        --from-literal=GOOGLE_DRIVE_FOLDER_ID="replace_with_folder_id" \
+        --namespace=$NAMESPACE
+    echo "✅ Placeholder Google Drive secrets created"
 fi
 
 # Step 9: Deploy to AKS
@@ -132,7 +157,7 @@ echo "📋 Step 9: Deploying to AKS"
 echo "Applying Kubernetes manifests..."
 
 kubectl apply -f /tmp/deployment-updated.yaml
-kubectl apply -f k8-deploy/service-simple.yaml
+kubectl apply -f k8-deploy/service.yaml
 
 echo "✅ Application deployed to AKS"
 
@@ -140,7 +165,7 @@ echo "✅ Application deployed to AKS"
 echo ""
 echo "📋 Step 10: Checking Deployment Status"
 echo "Waiting for pods to be ready..."
-kubectl wait --for=condition=ready pod -l app=flashstudio --timeout=300s
+kubectl wait --for=condition=ready pod -l app=flashstudio-monolith -n $NAMESPACE --timeout=300s
 
 # Get service information
 echo ""
@@ -151,26 +176,26 @@ kubectl get nodes -o wide
 
 echo ""
 echo "Application Status:"
-kubectl get pods -l app=flashstudio
-kubectl get services
+kubectl get pods -l app=flashstudio-monolith -n $NAMESPACE
+kubectl get services -n $NAMESPACE
 
 # Get external IP (if LoadBalancer)
-EXTERNAL_IP=$(kubectl get service flashstudio-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "Pending")
+EXTERNAL_IP=$(kubectl get service flashstudio-lb -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "Pending")
 if [ "$EXTERNAL_IP" != "Pending" ] && [ "$EXTERNAL_IP" != "" ]; then
     echo ""
     echo "🌐 Your application will be available at: http://$EXTERNAL_IP"
 else
     echo ""
     echo "🌐 External IP is pending. Check status with:"
-    echo "   kubectl get service flashstudio-service -w"
+    echo "   kubectl get service flashstudio-lb -n $NAMESPACE -w"
 fi
 
 echo ""
 echo "📋 Useful Commands:"
-echo "   View pods: kubectl get pods"
-echo "   View services: kubectl get services"
-echo "   View logs: kubectl logs -l app=flashstudio"
-echo "   Port forward (for testing): kubectl port-forward svc/flashstudio-service 8080:80"
+echo "   View pods: kubectl get pods -n $NAMESPACE"
+echo "   View services: kubectl get services -n $NAMESPACE"
+echo "   View logs: kubectl logs -l app=flashstudio-monolith -n $NAMESPACE"
+echo "   Port forward (for testing): kubectl port-forward svc/flashstudio-lb 8080:80 -n $NAMESPACE"
 
 # Cleanup temporary file
 rm -f /tmp/deployment-updated.yaml

@@ -17,6 +17,7 @@ from routes.admin import admin_bp
 from routes.auth import auth_bp
 from routes.upload import upload_bp
 from routes.payment import payment_bp
+from routes.admin_videos import admin_videos_bp
 
 
 app = Flask(__name__)
@@ -48,6 +49,7 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(upload_bp)
 app.register_blueprint(payment_bp)
+app.register_blueprint(admin_videos_bp)
 
 
 

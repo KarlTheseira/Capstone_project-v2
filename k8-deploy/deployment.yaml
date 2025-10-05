@@ -22,7 +22,7 @@ spec:
       #   - name: acr-pull
       containers:
         - name: web
-          image: flashstudiomain.azurecr.io/flashstudio/monolith:v2
+          image: flashstudiocapstone.azurecr.io/flashstudio/monolith:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
