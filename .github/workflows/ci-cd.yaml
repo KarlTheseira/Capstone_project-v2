@@ -59,14 +59,53 @@ jobs:
         resource-group: ${{ secrets.RESOURCE_GROUP }}
         cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
 
-    # (optional) ensure namespace exists
-    - name: Ensure namespace exists
+    # Ensure namespace and basic secrets exist
+    - name: Setup namespace and secrets
       run: |
+        # Create namespace if it doesn't exist
         kubectl get ns ${{ secrets.NAMESPACE }} >/dev/null 2>&1 || \
         kubectl create ns ${{ secrets.NAMESPACE }}
+        
+        # Create basic secrets if they don't exist (GitHub Actions will skip if they already exist)
+        kubectl create secret generic flashstudio-secrets \
+          --from-literal=DATABASE_URL="sqlite:///filmcompany.db" \
+          --from-literal=SECRET_KEY="$(openssl rand -base64 32)" \
+          --namespace=${{ secrets.NAMESPACE }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        kubectl create secret generic stripe-secrets \
+          --from-literal=STRIPE_PUBLISHABLE_KEY="pk_test_replace_with_your_key" \
+          --from-literal=STRIPE_SECRET_KEY="sk_test_replace_with_your_key" \
+          --from-literal=STRIPE_WEBHOOK_SECRET="whsec_replace_with_your_secret" \
+          --namespace=${{ secrets.NAMESPACE }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        kubectl create secret generic google-drive-secrets \
+          --from-literal=GOOGLE_DRIVE_CREDENTIALS_JSON='{"type":"service_account","project_id":"replace-me"}' \
+          --from-literal=GOOGLE_DRIVE_FOLDER_ID="replace_with_folder_id" \
+          --namespace=${{ secrets.NAMESPACE }} \
+          --dry-run=client -o yaml | kubectl apply -f -
 
     - name: Deploy to AKS
       run: |
+        echo "Deploying image: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG"
+        
+        # Check if deployment exists, if not create it
+        if ! kubectl get deployment flashstudio-monolith -n ${{ secrets.NAMESPACE }} >/dev/null 2>&1; then
+          echo "Deployment doesn't exist, creating initial deployment..."
+          kubectl apply -f k8-deploy/deployment.yaml
+          kubectl apply -f k8-deploy/service.yaml
+        else
+          echo "Deployment exists, updating image..."
+        fi
+        
+        # Update the image
         kubectl -n ${{ secrets.NAMESPACE }} set image deployment/flashstudio-monolith \
           web=${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
-        kubectl -n ${{ secrets.NAMESPACE }} rollout status deployment/flashstudio-monolith
+        
+        # Wait for rollout to complete
+        kubectl -n ${{ secrets.NAMESPACE }} rollout status deployment/flashstudio-monolith --timeout=300s
+        
+        # Show final status
+        kubectl get pods -n ${{ secrets.NAMESPACE }}
+        kubectl get services -n ${{ secrets.NAMESPACE }}
