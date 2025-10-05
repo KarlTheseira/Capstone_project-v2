@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "STRIPE_SECRET_KEY": "sk_test_your_stripe_secret_key_here",
+    "STRIPE_WEBHOOK_SECRET": "whsec_your_webhook_secret_here",
+    "AZURE_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=your_storage;AccountKey=your_key;EndpointSuffix=core.windows.net",
+    "MAIN_APP_URL": "https://flashstudio-app.azurewebsites.net",
+    "EMAIL_FROM": "noreply@flashstudio.com",
+    "EMAIL_API_KEY": "your_sendgrid_api_key_here"
+  }
+}
