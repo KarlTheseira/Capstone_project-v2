@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: flashstudio-app    # Set this to your app name
-  PYTHON_VERSION: '3.11'
+  AZURE_WEBAPP_NAME: flashstudio-karl   # Set this to your app name  
+  PYTHON_VERSION: '3.9'
 
 jobs:
   build:
