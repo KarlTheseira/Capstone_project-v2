@@ -48,12 +48,26 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     overflow: hidden;
+    background: #000;
 }
 
 .video-player video {
     width: 100%;
     height: auto;
     display: block;
+}
+
+/* When using native controls, ensure proper styling */
+.video-player[controls] {
+    border-radius: 8px;
+}
+
+/* Video container */
+.video-container {
+    position: relative;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
 }
 
 /* Loading indicator */
@@ -87,8 +101,17 @@
     transition: opacity 0.3s ease;
 }
 
+.custom-controls {
+    display: flex; /* Show custom controls by default */
+}
+
 .video-container:hover .video-controls {
     opacity: 1;
+}
+
+/* Hide custom controls when using native */
+.video-controls[style*="display: none"] {
+    display: none !important;
 }
 
 .video-progress {

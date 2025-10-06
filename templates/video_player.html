@@ -6,11 +6,12 @@
     <div class="video-container">
         {% if product.video_key %}
             <div class="video-loading">Loading...</div>
-            <video class="video-player" id="videoPlayer">
+            <video class="video-player" id="videoPlayer" controls preload="metadata" playsinline>
                 <source src="{{ url_for('video.play', video_id=product.id) }}" type="video/mp4">
-                Your browser does not support the video element.
+                Your browser does not support the video element. 
+                <a href="{{ url_for('video.play', video_id=product.id) }}">Download the video</a>
             </video>
-            <div class="video-controls">
+            <div class="video-controls custom-controls">
                 <button class="btn btn-link text-white" id="playPauseBtn">
                     <i class="bi bi-play-fill"></i>
                 </button>
@@ -78,58 +79,105 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressBar = document.querySelector('.video-progress-bar');
     const timeDisplay = document.querySelector('.video-time');
     const loadingIndicator = document.querySelector('.video-loading');
+    const customControls = document.querySelector('.custom-controls');
+    
+    // Check if video can be played, if not, fall back to native controls
+    let useCustomControls = true;
+    
+    // Error handling
+    video.addEventListener('error', function() {
+        console.error('Video error occurred:', video.error);
+        fallbackToNativeControls();
+    });
+    
+    video.addEventListener('loadeddata', function() {
+        // Video loaded successfully, try to use custom controls
+        if (useCustomControls) {
+            video.controls = false; // Hide native controls
+            customControls.style.display = 'flex';
+        }
+    });
+    
+    // Fallback function
+    function fallbackToNativeControls() {
+        console.log('Falling back to native HTML5 controls');
+        useCustomControls = false;
+        video.controls = true; // Show native controls
+        if (customControls) {
+            customControls.style.display = 'none'; // Hide custom controls
+        }
+    }
     
     // Loading indicator
-    video.addEventListener('loadstart', () => loadingIndicator.classList.add('active'));
-    video.addEventListener('canplay', () => loadingIndicator.classList.remove('active'));
-    
-    // Play/Pause
-    playPauseBtn.addEventListener('click', () => {
-        if (video.paused) {
-            video.play();
-            playPauseBtn.innerHTML = '<i class="bi bi-pause-fill"></i>';
-        } else {
-            video.pause();
-            playPauseBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
-        }
+    video.addEventListener('loadstart', () => {
+        if (loadingIndicator) loadingIndicator.classList.add('active');
+    });
+    video.addEventListener('canplay', () => {
+        if (loadingIndicator) loadingIndicator.classList.remove('active');
     });
     
-    // Progress bar
-    video.addEventListener('timeupdate', () => {
-        const percent = (video.currentTime / video.duration) * 100;
-        progressBar.style.width = `${percent}%`;
+    // Only setup custom controls if they should be used
+    if (useCustomControls && playPauseBtn && progress && timeDisplay && fullscreenBtn) {
         
-        // Update time display
-        const current = formatTime(video.currentTime);
-        const total = formatTime(video.duration);
-        timeDisplay.textContent = `${current} / ${total}`;
-    });
-    
-    // Click on progress bar
-    progress.addEventListener('click', (e) => {
-        const rect = progress.getBoundingClientRect();
-        const pos = (e.clientX - rect.left) / rect.width;
-        video.currentTime = pos * video.duration;
-    });
-    
-    // Fullscreen
-    fullscreenBtn.addEventListener('click', () => {
-        if (document.fullscreenElement) {
-            document.exitFullscreen();
-            fullscreenBtn.innerHTML = '<i class="bi bi-fullscreen"></i>';
-        } else {
-            video.requestFullscreen();
-            fullscreenBtn.innerHTML = '<i class="bi bi-fullscreen-exit"></i>';
-        }
-    });
+        // Play/Pause
+        playPauseBtn.addEventListener('click', () => {
+            if (video.paused) {
+                video.play().catch(() => fallbackToNativeControls());
+                playPauseBtn.innerHTML = '<i class="bi bi-pause-fill"></i>';
+            } else {
+                video.pause();
+                playPauseBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
+            }
+        });
+        
+        // Progress bar
+        video.addEventListener('timeupdate', () => {
+            if (!useCustomControls) return;
+            const percent = (video.currentTime / video.duration) * 100;
+            progressBar.style.width = `${percent}%`;
+            
+            // Update time display
+            const current = formatTime(video.currentTime);
+            const total = formatTime(video.duration);
+            timeDisplay.textContent = `${current} / ${total}`;
+        });
+        
+        // Click on progress bar
+        progress.addEventListener('click', (e) => {
+            if (!useCustomControls) return;
+            const rect = progress.getBoundingClientRect();
+            const pos = (e.clientX - rect.left) / rect.width;
+            video.currentTime = pos * video.duration;
+        });
+        
+        // Fullscreen
+        fullscreenBtn.addEventListener('click', () => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+                fullscreenBtn.innerHTML = '<i class="bi bi-fullscreen"></i>';
+            } else {
+                video.requestFullscreen().catch(() => fallbackToNativeControls());
+                fullscreenBtn.innerHTML = '<i class="bi bi-fullscreen-exit"></i>';
+            }
+        });
+    }
     
     // Format time helper
     function formatTime(seconds) {
+        if (isNaN(seconds)) return '0:00';
         seconds = Math.floor(seconds);
         const minutes = Math.floor(seconds / 60);
         seconds = seconds % 60;
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
+    
+    // Timeout fallback - if video doesn't load within 10 seconds, use native controls
+    setTimeout(() => {
+        if (video.readyState === 0) {
+            console.log('Video loading timeout, falling back to native controls');
+            fallbackToNativeControls();
+        }
+    }, 10000);
 });
 </script>
 {% endblock %}
