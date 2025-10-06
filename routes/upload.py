@@ -5,11 +5,18 @@ Integrates with Google Drive service for robust file management
 import os
 import logging
 from flask import Blueprint, request, jsonify, abort, current_app
-from utils.google_drive import drive_storage_service as blob_storage_service
+from utils.google_drive import drive_storage_service as drive_blob_service
+from utils.local_storage import local_storage_service
 
 logger = logging.getLogger(__name__)
 
 upload_bp = Blueprint("upload_bp", __name__, url_prefix='/api')
+
+def get_storage():
+    backend = current_app.config.get('STORAGE_BACKEND', 'local')
+    if backend == 'drive':
+        return drive_blob_service
+    return local_storage_service
 
 @upload_bp.route("/upload", methods=["POST"])
 def upload_file():
@@ -28,7 +35,8 @@ def upload_file():
         custom_name = request.form.get("custom_name")
 
         # Upload file using enhanced storage service
-        success, result = blob_storage_service.upload_file(
+        storage = get_storage()
+        success, result = storage.upload_file(
             file=file,
             folder=folder,
             custom_name=custom_name
@@ -51,9 +59,8 @@ def list_files():
     try:
         folder = request.args.get("folder", "")
         limit = int(request.args.get("limit", 100))
-
-        success, result = blob_storage_service.list_files(folder=folder, limit=limit)
-
+        storage = get_storage()
+        success, result = storage.list_files(folder=folder, limit=limit)
         if success:
             return jsonify(result), 200
         else:
@@ -67,8 +74,9 @@ def list_files():
 def delete_file(blob_name):
     """Delete a file from storage"""
     try:
-        success, result = blob_storage_service.delete_file(blob_name)
-
+        storage = get_storage()
+        # local storage delete uses simple id; drive service expects blob/file id
+        success, result = storage.delete_file(blob_name)
         if success:
             logger.info(f"File deleted successfully: {blob_name}")
             return jsonify(result), 200
@@ -84,7 +92,15 @@ def delete_file(blob_name):
 def get_file_info(blob_name):
     """Get file information"""
     try:
-        success, result = blob_storage_service.get_file_info(blob_name)
+        storage = get_storage()
+        # local storage lacks get_file_info; emulate minimal response
+        if hasattr(storage, 'get_file_info'):
+            success, result = storage.get_file_info(blob_name)
+        else:
+            # fabricate info
+            public_url = f"/media/{blob_name}"
+            result = {'id': blob_name, 'public_url': public_url}
+            success = True
 
         if success:
             return jsonify(result), 200
@@ -101,10 +117,15 @@ def generate_download_url(blob_name):
     try:
         expiry_hours = int(request.args.get("expiry_hours", 24))
         
-        download_url = blob_storage_service.generate_download_url(
+        storage = get_storage()
+        if hasattr(storage, 'generate_download_url'):
+            download_url = storage.generate_download_url(
             file_id=blob_name,
             expiry_hours=expiry_hours
-        )
+            )
+        else:
+            # Local storage: just return direct URL (not expiring)
+            download_url = f"/media/{blob_name}"
 
         if download_url:
             return jsonify({
@@ -129,17 +150,19 @@ def upload_file_legacy():
         file = request.files["file"]
         if file.filename == "":
             abort(400, "No selected file")
-
-        success, result = blob_storage_service.upload_file(file=file)
+        storage = get_storage()
+        success, result = storage.upload_file(file=file)
 
         if success:
-            # Return in legacy format
+            # Return in legacy format (normalize keys if missing)
+            public_url = result.get("public_url") or result.get("url")
+            blob_name = result.get("blob_name") or result.get("id") or result.get("stored_name")
             return jsonify({
-                "url": result["public_url"],
-                "blob": result["blob_name"]
+                "url": public_url,
+                "blob": blob_name
             })
         else:
-            abort(400, result["error"])
+            abort(400, result.get("error", "upload failed"))
 
     except Exception as e:
         logger.error(f"Legacy upload error: {e}")

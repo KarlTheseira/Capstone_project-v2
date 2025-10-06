@@ -7,6 +7,7 @@ from flask_migrate import Migrate
 from models import db, Product, User, Order, OrderItem
 from config import Config
 from utils.google_drive import drive_service
+from utils.local_storage import local_storage_service
 import logging
 from datetime import timedelta
 import os
@@ -33,18 +34,21 @@ app.config['SESSION_COOKIE_NAME'] = 'flash_studio_session'
 db.init_app(app)
 migrate = Migrate(app, db)
 
-# --- Google Drive Configuration Injection & Initialization ---
-# Ensure the folder ID is explicitly passed into Flask config so the
-# Google Drive service doesn't silently skip initialization.
-folder_id_env = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
-if folder_id_env:
-    app.config['GOOGLE_DRIVE_FOLDER_ID'] = folder_id_env
+## --- Storage Backend Selection (local or drive) ---
+backend = app.config.get('STORAGE_BACKEND', 'local')
+if backend == 'drive':
+    folder_id_env = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
+    if folder_id_env:
+        app.config['GOOGLE_DRIVE_FOLDER_ID'] = folder_id_env
+    else:
+        logging.warning("GOOGLE_DRIVE_FOLDER_ID not set in environment at app startup (drive backend selected)")
+    logging.info("[storage] Initializing Google Drive backend (folder id=%s)", app.config.get('GOOGLE_DRIVE_FOLDER_ID'))
+    drive_service.init_app(app)
+    app.extensions['active_storage'] = drive_service
 else:
-    logging.warning("GOOGLE_DRIVE_FOLDER_ID not set in environment at app startup")
-
-logging.info("Initializing Google Drive service (folder id=%s)", app.config.get('GOOGLE_DRIVE_FOLDER_ID'))
-drive_service.init_app(app)
-logging.info("Google Drive service initialization invoked")
+    logging.info("[storage] Using local storage backend")
+    app.extensions['active_storage'] = local_storage_service
+app.config['ACTIVE_STORAGE_BACKEND'] = backend
 
 # Register blueprints
 app.register_blueprint(public_bp)
