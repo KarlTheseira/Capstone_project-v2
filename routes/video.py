@@ -72,39 +72,134 @@ def init_videos():
 
 @video_bp.route('/play/<int:video_id>')
 def play(video_id):
-    """Stream a video file with optimized headers."""
-    video = Product.query.get_or_404(video_id)
-    if not video.video_key:
-        abort(404)
-    
-    video_path = os.path.join('static/uploads', video.video_key)
-    if not os.path.exists(video_path):
-        abort(404)
-    
-    # Stream the video file with proper headers
-    response = send_file(
-        video_path,
-        mimetype='video/mp4',
-        as_attachment=False,
-        conditional=True,  # Enable range requests for proper video streaming
-        download_name=f"{video.title}.mp4"
-    )
-    
-    # Add headers for better video streaming
-    response.headers['Accept-Ranges'] = 'bytes'
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    
-    return response
+    """Stream a video file with optimized headers and error handling."""
+    try:
+        video = Product.query.get_or_404(video_id)
+        if not video.video_key:
+            flash('Video not found or not available', 'error')
+            abort(404)
+        
+        video_path = os.path.join('static/uploads', video.video_key)
+        if not os.path.exists(video_path):
+            flash(f'Video file not found: {video.video_key}', 'error')
+            abort(404)
+        
+        # Get file stats for better header information
+        import os
+        file_stats = os.stat(video_path)
+        file_size = file_stats.st_size
+        
+        # Stream the video file with enhanced headers
+        response = send_file(
+            video_path,
+            mimetype='video/mp4',
+            as_attachment=False,
+            conditional=True,  # Enable range requests for proper video streaming
+            download_name=f"{video.title}.mp4"
+        )
+        
+        # Enhanced headers for better video streaming
+        response.headers['Accept-Ranges'] = 'bytes'
+        response.headers['Content-Length'] = str(file_size)
+        response.headers['Content-Type'] = 'video/mp4'
+        
+        # Caching headers for better performance
+        response.headers['Cache-Control'] = 'public, max-age=3600'  # Cache for 1 hour
+        response.headers['ETag'] = f'"{video_id}-{int(file_stats.st_mtime)}"'
+        
+        # Cross-origin headers for better compatibility
+        response.headers['Cross-Origin-Resource-Policy'] = 'cross-origin'
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Range'
+        
+        return response
+        
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.error(f'Video streaming error for video {video_id}: {str(e)}')
+        abort(500)
 
 @video_bp.route('/direct/<int:video_id>')
 def direct(video_id):
     """Direct video file serving via static files."""
-    video = Product.query.get_or_404(video_id)
-    if not video.video_key:
-        abort(404)
-    
-    # Redirect to static file serving
-    from flask import redirect, url_for
-    return redirect(url_for('static', filename=f'uploads/{video.video_key}'))
+    try:
+        video = Product.query.get_or_404(video_id)
+        if not video.video_key:
+            abort(404)
+        
+        # Check if file exists before redirecting
+        video_path = os.path.join('static/uploads', video.video_key)
+        if not os.path.exists(video_path):
+            abort(404)
+        
+        # Redirect to static file serving
+        from flask import redirect, url_for
+        return redirect(url_for('static', filename=f'uploads/{video.video_key}'))
+        
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.error(f'Direct video access error for video {video_id}: {str(e)}')
+        abort(500)
+
+@video_bp.route('/health/<int:video_id>')
+def health(video_id):
+    """Check if video file is available and accessible."""
+    try:
+        video = Product.query.get_or_404(video_id)
+        if not video.video_key:
+            return {'status': 'error', 'message': 'No video key'}, 404
+        
+        video_path = os.path.join('static/uploads', video.video_key)
+        if not os.path.exists(video_path):
+            return {'status': 'error', 'message': 'Video file not found'}, 404
+        
+        # Get file information
+        import os
+        file_stats = os.stat(video_path)
+        
+        return {
+            'status': 'ok',
+            'video_id': video_id,
+            'title': video.title,
+            'filename': video.video_key,
+            'size': file_stats.st_size,
+            'size_mb': round(file_stats.st_size / (1024 * 1024), 2),
+            'modified': int(file_stats.st_mtime)
+        }, 200
+        
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}, 500
+
+@video_bp.route('/info/<int:video_id>')
+def info(video_id):
+    """Get detailed video information."""
+    try:
+        video = Product.query.get_or_404(video_id)
+        
+        video_info = {
+            'id': video.id,
+            'title': video.title,
+            'description': video.description,
+            'duration': video.video_duration,
+            'duration_display': getattr(video, 'duration_display', 'Unknown'),
+            'has_video': bool(video.video_key),
+            'video_key': video.video_key,
+            'thumbnail': video.video_thumbnail,
+            'client': video.client_name
+        }
+        
+        if video.video_key:
+            video_path = os.path.join('static/uploads', video.video_key)
+            if os.path.exists(video_path):
+                file_stats = os.stat(video_path)
+                video_info['file_size'] = file_stats.st_size
+                video_info['file_size_mb'] = round(file_stats.st_size / (1024 * 1024), 2)
+                video_info['file_available'] = True
+            else:
+                video_info['file_available'] = False
+        
+        return video_info, 200
+        
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}, 500

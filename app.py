@@ -6,8 +6,7 @@ from flask import Flask, session, render_template, send_from_directory
 from flask_migrate import Migrate
 from models import db, Product, User, Order, OrderItem
 from config import Config
-from utils.stripe_service import stripe_service
-from utils.google_drive import drive_storage_service
+from utils.google_drive import drive_service
 from datetime import timedelta
 import os
 
@@ -16,9 +15,7 @@ from routes.public import public_bp
 from routes.admin import admin_bp
 from routes.auth import auth_bp
 from routes.upload import upload_bp
-from routes.payment import payment_bp
-from routes.admin_videos import admin_videos_bp
-from routes.video import video_bp
+from routes.gdrive import gdrive_bp
 
 
 app = Flask(__name__)
@@ -26,34 +23,23 @@ app.config.from_object(Config)
 
 # Enhanced session configuration for development stability
 app.config['SESSION_COOKIE_SECURE'] = False  # Allow HTTP in development
-app.config['SESSION_COOKIE_HTTPONLY'] = False  # Allow JavaScript access for debugging
+app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)  # Long session for development
 app.config['SESSION_COOKIE_NAME'] = 'flash_studio_session'
-app.config['SESSION_COOKIE_DOMAIN'] = None  # Use default domain
-app.config['SESSION_COOKIE_PATH'] = '/'
 
 db.init_app(app)
 migrate = Migrate(app, db)
 
-# Initialize services
-stripe_service.init_app(app)
-drive_storage_service.init_app(app)
-
-# Initialize rate limiting
-from utils.rate_limiting import init_rate_limiting
-init_rate_limiting(app)
+# Initialize Google Drive service
+drive_service.init_app(app)
 
 # Register blueprints
 app.register_blueprint(public_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(upload_bp)
-app.register_blueprint(payment_bp)
-app.register_blueprint(admin_videos_bp)
-app.register_blueprint(video_bp)
-
-
+app.register_blueprint(gdrive_bp)
 
 # Media serving route
 @app.route('/media/<path:filename>')
@@ -73,11 +59,6 @@ def inject_user():
         current_admin = True
     return dict(current_user=current_user, current_admin=current_admin)
 
-@app.context_processor
-def inject_stripe_key():
-    """Inject Stripe publishable key into template context"""
-    return dict(stripe_publishable_key=app.config.get('STRIPE_PUBLISHABLE_KEY', ''))
-
 # Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
@@ -94,10 +75,6 @@ def init_db():
     with app.app_context():
         # Only create tables if they don't exist
         db.create_all()
-        
-        # Initialize video content
-        from routes.video import init_videos
-        init_videos()
         
         # Check if we need to add some initial data
         if Product.query.count() == 0:

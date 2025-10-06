@@ -40,7 +40,7 @@
     z-index: 1;
 }
 
-/* Video player styling */
+/* Enhanced Video player styling */
 .video-player {
     width: 100%;
     max-width: 1200px;
@@ -49,12 +49,14 @@
     border-radius: 8px;
     overflow: hidden;
     background: #000;
+    min-height: 300px;
 }
 
 .video-player video {
     width: 100%;
     height: auto;
     display: block;
+    border-radius: 8px;
 }
 
 /* When using native controls, ensure proper styling */
@@ -68,6 +70,78 @@
     background: #000;
     border-radius: 8px;
     overflow: hidden;
+    min-height: 300px;
+}
+
+/* Enhanced loading indicator */
+.video-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: white;
+    z-index: 10;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 2rem;
+    border-radius: 8px;
+    min-width: 200px;
+}
+
+.video-loading.active {
+    display: flex;
+}
+
+/* Video error styling */
+.video-error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 500px;
+    z-index: 15;
+}
+
+.video-error .alert {
+    margin: 0;
+    text-align: center;
+}
+
+.error-options {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* Video fallback content */
+.video-fallback {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: white;
+    z-index: 5;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+}
+
+.fallback-options {
+    margin-top: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
 }
 
 /* Loading indicator */
@@ -86,27 +160,108 @@
     opacity: 1;
 }
 
-/* Custom video controls */
+/* Enhanced Custom video controls */
 .video-controls {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
-    background: rgba(0, 0, 0, 0.7);
-    padding: 1rem;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+    padding: 1.5rem 1rem 1rem;
     display: flex;
     align-items: center;
     gap: 1rem;
     opacity: 0;
     transition: opacity 0.3s ease;
+    z-index: 10;
 }
 
 .custom-controls {
-    display: flex; /* Show custom controls by default */
+    display: none; /* Hidden by default, shown by JS */
 }
 
-.video-container:hover .video-controls {
+.video-container:hover .video-controls,
+.video-controls:focus-within {
     opacity: 1;
+}
+
+/* Control buttons */
+.video-controls .btn {
+    border: none;
+    background: none;
+    color: white;
+    font-size: 1.2rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.video-controls .btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    transform: scale(1.1);
+}
+
+.video-controls .btn:focus {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+    outline: none;
+}
+
+/* Enhanced progress bar */
+.video-progress {
+    flex-grow: 1;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    position: relative;
+    border-radius: 4px;
+    transition: height 0.2s ease;
+}
+
+.video-progress:hover {
+    height: 12px;
+}
+
+.video-progress-bar {
+    height: 100%;
+    background: var(--bs-primary, #0d6efd);
+    width: 0;
+    transition: width 0.1s linear;
+    border-radius: 4px;
+    position: relative;
+}
+
+.video-progress-handle {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    cursor: grab;
+}
+
+.video-progress:hover .video-progress-handle {
+    opacity: 1;
+}
+
+.video-progress-handle:active {
+    cursor: grabbing;
+    transform: translate(-50%, -50%) scale(1.2);
+}
+
+/* Time display */
+.video-time {
+    color: white;
+    font-size: 0.875rem;
+    min-width: 6rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 /* Hide custom controls when using native */

@@ -14,9 +14,14 @@ class Product(db.Model):
     media_key = db.Column(db.String(512), nullable=False)  # filename or blob name
     mime_type = db.Column(db.String(128))
     thumbnail_key = db.Column(db.String(512))
-    video_key = db.Column(db.String(512))  # For video content
+    video_key = db.Column(db.String(512))  # For video content (local or filename)
     video_thumbnail = db.Column(db.String(512))  # Video preview image
     video_duration = db.Column(db.Integer)  # Duration in seconds
+    
+    # Google Drive integration fields
+    google_drive_video_id = db.Column(db.String(512))  # Google Drive file ID
+    google_drive_video_url = db.Column(db.String(1024))  # Direct streaming URL
+    video_hosting_type = db.Column(db.String(32), default='local')  # 'local', 'google_drive', 'youtube', etc.
     project_date = db.Column(db.Date)  # When the project was completed
     client_name = db.Column(db.String(255))  # For portfolio pieces
     client_testimonial = db.Column(db.Text)  # Client feedback
@@ -41,7 +46,19 @@ class Product(db.Model):
     @property
     def is_video(self):
         """Check if this product has video content"""
-        return bool(self.video_key)
+        return bool(self.video_key or self.google_drive_video_id)
+    
+    @property
+    def video_stream_url(self):
+        """Get the appropriate video streaming URL based on hosting type"""
+        if self.video_hosting_type == 'google_drive' and self.google_drive_video_id:
+            # Google Drive direct streaming URL
+            return f"https://drive.google.com/uc?export=download&id={self.google_drive_video_id}"
+        elif self.video_key:
+            # Local video file
+            from flask import url_for
+            return url_for('video.play', video_id=self.id)
+        return None
     
     @property
     def size_options_list(self):
@@ -78,11 +95,9 @@ class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), nullable=False)
     amount_cents = db.Column(db.Integer, nullable=False)
-    currency = db.Column(db.String(16), nullable=False, default="sgd")
+    currency = db.Column(db.String(16), nullable=False, default="usd")
     stripe_payment_intent = db.Column(db.String(255))
-    status = db.Column(db.String(32), default="created")  # created, payment_pending, paid, payment_failed, cancelled
-    payment_method = db.Column(db.String(32), default="stripe")  # stripe, manual, etc.
-    payment_completed_at = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(32), default="created")  # created, paid, failed
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     user = db.relationship("User", backref="orders")
@@ -91,28 +106,6 @@ class Order(db.Model):
     def total_display(self):
         """Display total amount in currency format"""
         return f"S$ {self.amount_cents / 100.0:.2f}"
-    
-    @property
-    def is_paid(self):
-        """Check if order is paid"""
-        return self.status == "paid"
-    
-    @property
-    def is_pending_payment(self):
-        """Check if order is pending payment"""
-        return self.status == "payment_pending"
-    
-    @property
-    def payment_status_display(self):
-        """Human-readable payment status"""
-        status_map = {
-            "created": "Order Created",
-            "payment_pending": "Payment Pending", 
-            "paid": "Payment Completed",
-            "payment_failed": "Payment Failed",
-            "cancelled": "Cancelled"
-        }
-        return status_map.get(self.status, self.status.title())
     
     @property
     def customer_email(self):
