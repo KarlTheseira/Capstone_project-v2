@@ -22,26 +22,41 @@ spec:
       #   - name: acr-pull
       containers:
         - name: web
-          image: flashstudiocapstone.azurecr.io/flashstudio/monolith:latest
+          image: flashstudiocapstone.azurecr.io/flashstudio/monolith:gdrive-file-auth
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
 
-          # --- Google Drive Storage wiring ---
-          # Pull Google Drive credentials from secrets
+          # --- Environment variables ---
           env:
-            - name: GOOGLE_DRIVE_CREDENTIALS_JSON
-              valueFrom:
-                secretKeyRef:
-                  name: google-drive-secrets
-                  key: GOOGLE_DRIVE_CREDENTIALS_JSON
+            # Google Drive integration - using file-based credentials
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: "/etc/google-credentials/service-account.json"
             - name: GOOGLE_DRIVE_FOLDER_ID
               valueFrom:
                 secretKeyRef:
                   name: google-drive-secrets
                   key: GOOGLE_DRIVE_FOLDER_ID
+            # Shared Drive support (set these in the same secret)
+            - name: GOOGLE_DRIVE_SHARED_DRIVE_ID
+              valueFrom:
+                secretKeyRef:
+                  name: google-drive-secrets
+                  key: GOOGLE_DRIVE_SHARED_DRIVE_ID
+            # Optional domain-wide delegation impersonated user (email)
+            - name: GOOGLE_DRIVE_DELEGATED_USER
+              valueFrom:
+                secretKeyRef:
+                  name: google-drive-secrets
+                  key: GOOGLE_DRIVE_DELEGATED_USER
 
-            # Existing app envs
+            # Optional Azure Blob Storage (fallback)
+            - name: AZURE_STORAGE_ACCOUNT
+              value: "flashstudioblob"
+            - name: AZURE_STORAGE_CONTAINER
+              value: "uploads"
+
+            # App configuration
             - name: FLASK_ENV
               value: "production"
             - name: DATABASE_URL
@@ -50,39 +65,11 @@ spec:
                   name: flashstudio-secrets
                   key: DATABASE_URL
 
-            # Stripe payment configuration
-            - name: STRIPE_PUBLISHABLE_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: stripe-secrets
-                  key: STRIPE_PUBLISHABLE_KEY
-            - name: STRIPE_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: stripe-secrets
-                  key: STRIPE_SECRET_KEY
-            - name: STRIPE_WEBHOOK_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: stripe-secrets
-                  key: STRIPE_WEBHOOK_SECRET
-
-            # Payment configuration
-            - name: CURRENCY
-              value: "sgd"
-            - name: PAYMENT_SUCCESS_URL
-              value: "/payment-success"
-            - name: PAYMENT_CANCEL_URL
-              value: "/cart"
-
-          # Resource limits
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "250m"
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
+          # Mount Google Drive credentials as file
+          volumeMounts:
+            - name: google-credentials
+              mountPath: /etc/google-credentials
+              readOnly: true
 
           # ---- Health probes against /healthz on port 8000 ----
           readinessProbe:
@@ -112,3 +99,12 @@ spec:
             periodSeconds: 5
 
       terminationGracePeriodSeconds: 30
+
+      # Volumes for Google Drive credentials
+      volumes:
+        - name: google-credentials
+          secret:
+            secretName: google-drive-secrets
+            items:
+              - key: service-account.json
+                path: service-account.json

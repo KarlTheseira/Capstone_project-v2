@@ -7,6 +7,12 @@ on:
 
 env:
   IMAGE_NAME: flashstudio/monolith
+  # Google Drive secrets will be injected from GitHub Actions encrypted secrets
+  GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
+  GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+  # Optional advanced Drive settings (Shared Drive & delegation)
+  GOOGLE_DRIVE_SHARED_DRIVE_ID: ${{ secrets.GOOGLE_DRIVE_SHARED_DRIVE_ID }}
+  GOOGLE_DRIVE_DELEGATED_USER: ${{ secrets.GOOGLE_DRIVE_DELEGATED_USER }}
 
 jobs:
   build-and-deploy:
@@ -24,6 +30,11 @@ jobs:
         test -n "${{ secrets.RESOURCE_GROUP }}"    || (echo "RESOURCE_GROUP missing" && exit 1)
         test -n "${{ secrets.AKS_CLUSTER_NAME }}"  || (echo "AKS_CLUSTER_NAME missing" && exit 1)
         test -n "${{ secrets.NAMESPACE }}"         || (echo "NAMESPACE missing" && exit 1)
+        test -n "${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}" || (echo "GOOGLE_DRIVE_CREDENTIALS_JSON missing" && exit 1)
+        test -n "${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}" || (echo "GOOGLE_DRIVE_FOLDER_ID missing" && exit 1)
+        # Optional: Shared Drive & Delegation (warn if missing when expected)
+        if [ -n "${{ secrets.GOOGLE_DRIVE_SHARED_DRIVE_ID }}" ]; then echo "Using Shared Drive ID"; else echo "(Optional) GOOGLE_DRIVE_SHARED_DRIVE_ID not set"; fi
+        if [ -n "${{ secrets.GOOGLE_DRIVE_DELEGATED_USER }}" ]; then echo "Using delegated user"; else echo "(Optional) GOOGLE_DRIVE_DELEGATED_USER not set"; fi
 
     - name: Azure login
       uses: azure/login@v2
@@ -59,53 +70,31 @@ jobs:
         resource-group: ${{ secrets.RESOURCE_GROUP }}
         cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
 
-    # Ensure namespace and basic secrets exist
-    - name: Setup namespace and secrets
+    # (optional) ensure namespace exists
+    - name: Ensure namespace exists
       run: |
-        # Create namespace if it doesn't exist
         kubectl get ns ${{ secrets.NAMESPACE }} >/dev/null 2>&1 || \
         kubectl create ns ${{ secrets.NAMESPACE }}
-        
-        # Create basic secrets if they don't exist (GitHub Actions will skip if they already exist)
-        kubectl create secret generic flashstudio-secrets \
-          --from-literal=DATABASE_URL="sqlite:///filmcompany.db" \
-          --from-literal=SECRET_KEY="$(openssl rand -base64 32)" \
-          --namespace=${{ secrets.NAMESPACE }} \
-          --dry-run=client -o yaml | kubectl apply -f -
-        
-        kubectl create secret generic stripe-secrets \
-          --from-literal=STRIPE_PUBLISHABLE_KEY="pk_test_replace_with_your_key" \
-          --from-literal=STRIPE_SECRET_KEY="sk_test_replace_with_your_key" \
-          --from-literal=STRIPE_WEBHOOK_SECRET="whsec_replace_with_your_secret" \
-          --namespace=${{ secrets.NAMESPACE }} \
-          --dry-run=client -o yaml | kubectl apply -f -
-        
-        kubectl create secret generic google-drive-secrets \
-          --from-literal=GOOGLE_DRIVE_CREDENTIALS_JSON='{"type":"service_account","project_id":"replace-me"}' \
-          --from-literal=GOOGLE_DRIVE_FOLDER_ID="replace_with_folder_id" \
-          --namespace=${{ secrets.NAMESPACE }} \
-          --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Create/Update Google Drive Secret
+      run: |
+        echo "Creating/Updating google-drive-secrets in namespace ${{ secrets.NAMESPACE }}"
+        kubectl delete secret google-drive-secrets --ignore-not-found -n ${{ secrets.NAMESPACE }}
+        # Create secret with credentials JSON and folder ID. The credentials JSON may contain newlines; we base64 round-trip to avoid parsing issues.
+        printf "%s" "${GOOGLE_DRIVE_CREDENTIALS_JSON}" > gdrive_creds.json
+        SECRET_ARGS="--from-file=service-account.json=gdrive_creds.json --from-literal=GOOGLE_DRIVE_FOLDER_ID=\"${GOOGLE_DRIVE_FOLDER_ID}\""
+        if [ -n "${GOOGLE_DRIVE_SHARED_DRIVE_ID}" ]; then
+          SECRET_ARGS="$SECRET_ARGS --from-literal=GOOGLE_DRIVE_SHARED_DRIVE_ID=\"${GOOGLE_DRIVE_SHARED_DRIVE_ID}\""
+        fi
+        if [ -n "${GOOGLE_DRIVE_DELEGATED_USER}" ]; then
+          SECRET_ARGS="$SECRET_ARGS --from-literal=GOOGLE_DRIVE_DELEGATED_USER=\"${GOOGLE_DRIVE_DELEGATED_USER}\""
+        fi
+        # shellcheck disable=SC2086
+        kubectl create secret generic google-drive-secrets $SECRET_ARGS -n ${{ secrets.NAMESPACE }}
+        echo "Google Drive secret created/updated."
 
     - name: Deploy to AKS
       run: |
-        echo "Deploying image: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG"
-        
-        # Check if deployment exists, if not create it
-        if ! kubectl get deployment flashstudio-monolith -n ${{ secrets.NAMESPACE }} >/dev/null 2>&1; then
-          echo "Deployment doesn't exist, creating initial deployment..."
-          kubectl apply -f k8-deploy/deployment.yaml
-          kubectl apply -f k8-deploy/service.yaml
-        else
-          echo "Deployment exists, updating image..."
-        fi
-        
-        # Update the image
         kubectl -n ${{ secrets.NAMESPACE }} set image deployment/flashstudio-monolith \
           web=${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
-        
-        # Wait for rollout to complete
-        kubectl -n ${{ secrets.NAMESPACE }} rollout status deployment/flashstudio-monolith --timeout=300s
-        
-        # Show final status
-        kubectl get pods -n ${{ secrets.NAMESPACE }}
-        kubectl get services -n ${{ secrets.NAMESPACE }}
+        kubectl -n ${{ secrets.NAMESPACE }} rollout status deployment/flashstudio-monolith
