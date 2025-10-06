@@ -1,6 +1,6 @@
 """
 Enhanced file upload routes for FlashStudio
-Integrates with Azure Blob Storage service for robust file management
+Integrates with Google Drive service for robust file management
 """
 import os
 import logging
@@ -13,7 +13,7 @@ upload_bp = Blueprint("upload_bp", __name__, url_prefix='/api')
 
 @upload_bp.route("/upload", methods=["POST"])
 def upload_file():
-    """Upload a file to Azure Blob Storage"""
+    """Upload a file to Google Drive Storage"""
     try:
         # Check if file is in request
         if "file" not in request.files:
@@ -35,7 +35,7 @@ def upload_file():
         )
 
         if success:
-            logger.info(f"File uploaded successfully: {result['blob_name']}")
+            logger.info(f"File uploaded successfully: {result['filename']}")
             return jsonify(result), 200
         else:
             logger.error(f"File upload failed: {result['error']}")
@@ -102,7 +102,7 @@ def generate_download_url(blob_name):
         expiry_hours = int(request.args.get("expiry_hours", 24))
         
         download_url = blob_storage_service.generate_download_url(
-            blob_name=blob_name,
+            file_id=blob_name,
             expiry_hours=expiry_hours
         )
 
