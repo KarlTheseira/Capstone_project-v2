@@ -72,7 +72,7 @@ def init_videos():
 
 @video_bp.route('/play/<int:video_id>')
 def play(video_id):
-    """Stream a video file."""
+    """Stream a video file with optimized headers."""
     video = Product.query.get_or_404(video_id)
     if not video.video_key:
         abort(404)
@@ -81,10 +81,30 @@ def play(video_id):
     if not os.path.exists(video_path):
         abort(404)
     
-    # Stream the video file
-    return send_file(
+    # Stream the video file with proper headers
+    response = send_file(
         video_path,
         mimetype='video/mp4',
         as_attachment=False,
-        conditional=True  # Enable range requests for proper video streaming
+        conditional=True,  # Enable range requests for proper video streaming
+        download_name=f"{video.title}.mp4"
     )
+    
+    # Add headers for better video streaming
+    response.headers['Accept-Ranges'] = 'bytes'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    
+    return response
+
+@video_bp.route('/direct/<int:video_id>')
+def direct(video_id):
+    """Direct video file serving via static files."""
+    video = Product.query.get_or_404(video_id)
+    if not video.video_key:
+        abort(404)
+    
+    # Redirect to static file serving
+    from flask import redirect, url_for
+    return redirect(url_for('static', filename=f'uploads/{video.video_key}'))

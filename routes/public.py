@@ -497,7 +497,13 @@ def video(product_id):
     product = Product.query.get_or_404(product_id)
     if not product.video_key:
         abort(404)
-    return render_template("video_player.html", product=product)
+    
+    # Check if simple mode is requested
+    simple_mode = request.args.get('simple', 'false').lower() == 'true'
+    if simple_mode:
+        return render_template("video_simple.html", product=product)
+    else:
+        return render_template("video_player.html", product=product)
 
 # -----------------------------
 # Product detail (GET shows page, POST adds to cart)

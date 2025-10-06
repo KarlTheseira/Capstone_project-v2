@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}{{ product.title }} · Flash Studio{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Simple Video Player -->
+            <div class="video-section mb-4">
+                <h2 class="mb-3">{{ product.title }}</h2>
+                
+                {% if product.video_key %}
+                <!-- Method 1: Direct static file link -->
+                <div class="video-option mb-3">
+                    <h5>Option 1: Direct Video Link</h5>
+                    <a href="{{ url_for('static', filename='uploads/' ~ product.video_key) }}" 
+                       class="btn btn-primary" target="_blank">
+                        <i class="bi bi-play-fill"></i> Open Video in New Tab
+                    </a>
+                </div>
+                
+                <!-- Method 2: Simple HTML5 Video -->
+                <div class="video-option mb-3">
+                    <h5>Option 2: Inline Player</h5>
+                    <video 
+                        width="100%" 
+                        height="400" 
+                        controls 
+                        preload="metadata"
+                        poster="{{ url_for('static', filename='uploads/' ~ product.video_thumbnail) if product.video_thumbnail else '' }}"
+                    >
+                        <source src="{{ url_for('static', filename='uploads/' ~ product.video_key) }}" type="video/mp4">
+                        <p>Your browser doesn't support HTML5 video. 
+                           <a href="{{ url_for('static', filename='uploads/' ~ product.video_key) }}">Download the video</a> instead.
+                        </p>
+                    </video>
+                </div>
+                
+                <!-- Method 3: Download Option -->
+                <div class="video-option mb-3">
+                    <h5>Option 3: Download Video</h5>
+                    <a href="{{ url_for('static', filename='uploads/' ~ product.video_key) }}" 
+                       class="btn btn-success" download="{{ product.title }}.mp4">
+                        <i class="bi bi-download"></i> Download Video ({{ "%.1f"|format((3400932 / 1024 / 1024)) }} MB)
+                    </a>
+                </div>
+                
+                <!-- Method 4: Streaming Endpoint -->
+                <div class="video-option mb-3">
+                    <h5>Option 4: Streaming Link</h5>
+                    <a href="{{ url_for('video.play', video_id=product.id) }}" 
+                       class="btn btn-info" target="_blank">
+                        <i class="bi bi-broadcast"></i> Stream Video
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Video Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Video Details</h5>
+                </div>
+                <div class="card-body">
+                    {% if product.video_thumbnail %}
+                    <img src="{{ url_for('static', filename='uploads/' ~ product.video_thumbnail) }}" 
+                         class="card-img-top mb-3" alt="{{ product.title }}">
+                    {% endif %}
+                    
+                    <p class="card-text">{{ product.description }}</p>
+                    
+                    <ul class="list-unstyled">
+                        <li><strong>Duration:</strong> {{ product.duration_display }}</li>
+                        {% if product.client_name %}
+                        <li><strong>Client:</strong> {{ product.client_name }}</li>
+                        {% endif %}
+                        {% if product.project_date %}
+                        <li><strong>Date:</strong> {{ product.project_date.strftime('%B %d, %Y') }}</li>
+                        {% endif %}
+                    </ul>
+                    
+                    {% if product.client_testimonial %}
+                    <blockquote class="blockquote mt-3">
+                        <p class="mb-0">{{ product.client_testimonial }}</p>
+                        <footer class="blockquote-footer">{{ product.client_name }}</footer>
+                    </blockquote>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Troubleshooting -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Having Issues?</h6>
+                </div>
+                <div class="card-body">
+                    <p class="card-text small">Try these options if the video won't play:</p>
+                    <ol class="small">
+                        <li>Use "Open Video in New Tab" - most reliable</li>
+                        <li>Try a different browser (Chrome, Firefox, Safari)</li>
+                        <li>Download the video and play locally</li>
+                        <li>Check your internet connection</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Back Navigation -->
+    <div class="row mt-4">
+        <div class="col">
+            <a href="{{ url_for('public.home') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Homepage
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.video-option {
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.video-option h5 {
+    color: #495057;
+    margin-bottom: 0.75rem;
+}
+
+video {
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}
