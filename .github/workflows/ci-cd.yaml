@@ -25,16 +25,30 @@ jobs:
     # ---- Guardrails: fail fast if any secret missing ----
     - name: Validate required secrets
       run: |
-        test -n "${{ secrets.AZURE_CREDENTIALS }}" || (echo "AZURE_CREDENTIALS missing" && exit 1)
-        test -n "${{ secrets.ACR_LOGIN_SERVER }}"  || (echo "ACR_LOGIN_SERVER missing" && exit 1)
-        test -n "${{ secrets.RESOURCE_GROUP }}"    || (echo "RESOURCE_GROUP missing" && exit 1)
-        test -n "${{ secrets.AKS_CLUSTER_NAME }}"  || (echo "AKS_CLUSTER_NAME missing" && exit 1)
-        test -n "${{ secrets.NAMESPACE }}"         || (echo "NAMESPACE missing" && exit 1)
-        test -n "${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}" || (echo "GOOGLE_DRIVE_CREDENTIALS_JSON missing" && exit 1)
-        test -n "${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}" || (echo "GOOGLE_DRIVE_FOLDER_ID missing" && exit 1)
-        # Optional: Shared Drive & Delegation (warn if missing when expected)
-        if [ -n "${{ secrets.GOOGLE_DRIVE_SHARED_DRIVE_ID }}" ]; then echo "Using Shared Drive ID"; else echo "(Optional) GOOGLE_DRIVE_SHARED_DRIVE_ID not set"; fi
-        if [ -n "${{ secrets.GOOGLE_DRIVE_DELEGATED_USER }}" ]; then echo "Using delegated user"; else echo "(Optional) GOOGLE_DRIVE_DELEGATED_USER not set"; fi
+        # Robust validation (avoid 'test: too many arguments' if secrets contain spaces/newlines)
+        missing=0
+        req_vars="AZURE_CREDENTIALS ACR_LOGIN_SERVER RESOURCE_GROUP AKS_CLUSTER_NAME NAMESPACE GOOGLE_DRIVE_CREDENTIALS_JSON GOOGLE_DRIVE_FOLDER_ID"
+        for v in $req_vars; do
+          val="${{ secrets.AZURE_CREDENTIALS }}"
+          case "$v" in
+            ACR_LOGIN_SERVER) val="${{ secrets.ACR_LOGIN_SERVER }}";;
+            RESOURCE_GROUP) val="${{ secrets.RESOURCE_GROUP }}";;
+            AKS_CLUSTER_NAME) val="${{ secrets.AKS_CLUSTER_NAME }}";;
+            NAMESPACE) val="${{ secrets.NAMESPACE }}";;
+            GOOGLE_DRIVE_CREDENTIALS_JSON) val="${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}";;
+            GOOGLE_DRIVE_FOLDER_ID) val="${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}";;
+          esac
+          if [ -z "${val}" ]; then
+            echo "$v missing"; missing=1
+          else
+            # Print length only (mask content)
+            printf '%s length=%s\n' "$v" "$(printf '%s' "$val" | wc -c)"
+          fi
+        done
+        # Optional variables
+        if [ -n "${{ secrets.GOOGLE_DRIVE_SHARED_DRIVE_ID }}" ]; then echo "GOOGLE_DRIVE_SHARED_DRIVE_ID length=$(printf '%s' "${{ secrets.GOOGLE_DRIVE_SHARED_DRIVE_ID }}" | wc -c)"; else echo "(Optional) GOOGLE_DRIVE_SHARED_DRIVE_ID not set"; fi
+        if [ -n "${{ secrets.GOOGLE_DRIVE_DELEGATED_USER }}" ]; then echo "GOOGLE_DRIVE_DELEGATED_USER set"; else echo "(Optional) GOOGLE_DRIVE_DELEGATED_USER not set"; fi
+        if [ $missing -ne 0 ]; then echo "One or more required secrets missing"; exit 1; fi
 
     - name: Azure login
       uses: azure/login@v2
