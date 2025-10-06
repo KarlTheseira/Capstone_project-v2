@@ -200,6 +200,42 @@ ADMIN_PASSWORD=secure-admin-password
 - `/admin/products` - Product management
 - `/admin/bookings` - Booking management
 
+## Payments (Dummy Mode)
+
+The application currently ships with a safe, non-transactional dummy payment provider that simulates a minimal subset of Stripe's PaymentIntent lifecycle for local development and UI integration testing.
+
+### How It Works
+- Endpoint: `POST /api/payments/create-intent` creates an in-memory intent and a provisional `Order` plus its `OrderItem` records.
+- Endpoint: `POST /api/payments/confirm` transitions the intent to `succeeded` and marks the related `Order.status` as `paid`.
+- Endpoint: `GET /api/payments/intent/<id>` returns current intent details.
+- No real card details are processed; amounts are derived from product prices to exercise order math & analytics.
+
+### Configuration
+Environment variable: `PAYMENTS_PROVIDER` (defaults to `dummy`).
+
+Planned real integration:
+```
+PAYMENTS_PROVIDER=stripe
+STRIPE_API_KEY=sk_live_xxx
+```
+When Stripe support is added, the same endpoints will return live Stripe objects while preserving the contract used by the dummy provider.
+
+### Sample cURL Flow
+```
+curl -X POST http://127.0.0.1:5001/api/payments/create-intent \
+   -H 'Content-Type: application/json' \
+   -d '{"email":"buyer@example.com","items":[{"product_id":1,"quantity":2}],"currency":"usd"}'
+
+curl -X POST http://127.0.0.1:5001/api/payments/confirm \
+   -H 'Content-Type: application/json' \
+   -d '{"payment_intent_id":"<intent_id_from_previous_response>"}'
+```
+
+### Notes
+- Field `stripe_payment_intent` on `Order` is reused to store dummy intent IDs for a smooth future transition.
+- Analytics (revenue, etc.) treat dummy-paid orders identically, enabling end-to-end dashboard testing.
+- Never enable real Stripe in production without adding secret management and webhook signature validation.
+
 ## Contributing
 
 1. Fork the repository

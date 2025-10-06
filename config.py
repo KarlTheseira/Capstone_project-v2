@@ -17,3 +17,7 @@ class Config:
     # Google Drive configuration
     GOOGLE_DRIVE_CREDENTIALS_JSON = os.getenv("GOOGLE_DRIVE_CREDENTIALS_JSON")
     GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+
+    # Payments configuration
+    PAYMENTS_PROVIDER = os.getenv("PAYMENTS_PROVIDER", "dummy")  # 'dummy' or 'stripe'
+    STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")  # used when real stripe enabled

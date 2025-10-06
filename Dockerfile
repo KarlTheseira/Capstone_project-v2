@@ -16,7 +16,24 @@ WORKDIR /app
 
 # Copy and install Python dependencies first (better layer caching)
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt \
+  && python - <<'PY'
+import importlib, pkgutil, sys
+print('--- Dependency verification (build-time) ---')
+missing = []
+for mod in ['stripe']:
+  if importlib.util.find_spec(mod) is None:
+    missing.append(mod)
+    print(f'MISSING: {mod}')
+  else:
+    m = importlib.import_module(mod)
+    ver = getattr(m, '__version__', 'unknown')
+    print(f'OK: {mod} version {ver}')
+if missing:
+  print('FATAL: Required modules missing at build time ->', ', '.join(missing))
+  sys.exit(42)
+print('--- End dependency verification ---')
+PY
 
 # Copy application code
 COPY . .
