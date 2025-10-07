@@ -2,10 +2,10 @@
 {% block title %}Homepage Videos · Admin{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1 class="h3 mb-0">Homepage Videos</h1>
+  <h1 class="h3 mb-0">Videos</h1>
   <div class="d-flex gap-2 align-items-center">
     <button type="button" id="toggleEditBtn" class="btn btn-outline-warning btn-sm" data-active="false">Edit Mode</button>
-    <a href="{{ url_for('admin_videos.new_video') }}" class="btn btn-primary btn-sm">Add Video</a>
+  <a href="{{ url_for('admin_videos.new_video') }}" class="btn btn-primary btn-sm">Add Video</a>
     <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">Back</a>
   </div>
 </div>
@@ -37,11 +37,7 @@
                     <div class="d-flex align-items-center justify-content-between">
                       <div>
                         <strong>{{ product.title }}</strong>
-                        {% if product.video_hosting_type == 'google_drive' %}
-                          <span class="badge bg-info ms-2">Drive</span>
-                        {% else %}
-                          <span class="badge bg-secondary ms-2">Local</span>
-                        {% endif %}
+                        <span class="badge bg-secondary ms-2">Local</span>
                       </div>
                       <div class="btn-group btn-group-sm">
                         <form method="post" action="{{ url_for('admin_videos.unfeature_video', product_id=product.id) }}" class="mb-0">
@@ -121,11 +117,7 @@
               <tr>
                 <td class="small">{{ product.title }}</td>
                 <td>
-                  {% if product.video_hosting_type == 'google_drive' %}
-                    <span class="badge bg-info">Drive</span>
-                  {% else %}
-                    <span class="badge bg-secondary">Local</span>
-                  {% endif %}
+                  <span class="badge bg-secondary">Local</span>
                 </td>
                 <td>
                   <form method="post" action="{{ url_for('admin_videos.feature_video', product_id=product.id) }}" class="mb-0">
