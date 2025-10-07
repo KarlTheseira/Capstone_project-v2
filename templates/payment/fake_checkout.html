@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}Checkout - Flash Studio{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            
+            <!-- Checkout Header -->
+            <div class="text-center mb-5">
+                <h1 class="h3 mb-2">
+                    <i class="bi bi-credit-card me-2 text-primary"></i>
+                    Secure Checkout
+                </h1>
+                <p class="text-muted">Complete your payment securely with Stripe</p>
+            </div>
+
+            <div class="row">
+                <!-- Order Summary -->
+                <div class="col-md-5 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="bi bi-bag-check me-2"></i>
+                                Order Summary
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Order ID:</span>
+                                <span class="fw-bold">#{{ "ORD%05d"|format(order.id) }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Items:</span>
+                                <span>{{ order.item_count }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>Email:</span>
+                                <span class="text-truncate">{{ order.customer_email }}</span>
+                            </div>
+                            
+                            <hr>
+                            
+                            <!-- Order Items -->
+                            {% if order.items %}
+                                <h6 class="mb-3">Items in this order:</h6>
+                                {% for item in order.items %}
+                                <div class="d-flex justify-content-between align-items-center mb-2 small">
+                                    <div>
+                                        <strong>{{ item.product.title }}</strong><br>
+                                        <span class="text-muted">Qty: {{ item.quantity }}</span>
+                                    </div>
+                                    <span class="fw-bold">S$ {{ "%.2f"|format(item.unit_price_cents * item.quantity / 100) }}</span>
+                                </div>
+                                {% endfor %}
+                                <hr>
+                            {% endif %}
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="h6 mb-0">Total:</span>
+                                <span class="h5 mb-0 text-primary fw-bold">{{ order.total_display }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Form -->
+                <div class="col-md-7">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-shield-check me-2"></i>
+                                Payment Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Fake Stripe Form -->
+                            <form method="POST" action="{{ url_for('payment.complete_fake_checkout') }}">
+                                <input type="hidden" name="order_id" value="{{ order.id }}">
+                                
+                                <!-- Payment Method Selection -->
+                                <div class="mb-4">
+                                    <label class="form-label fw-semibold">Select Payment Outcome (Testing):</label>
+                                    <div class="row g-2">
+                                        <div class="col-12">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="payment_choice" id="success" value="success" checked>
+                                                <label class="form-check-label" for="success">
+                                                    <i class="bi bi-check-circle text-success me-1"></i>
+                                                    <strong>Successful Payment</strong>
+                                                    <small class="d-block text-muted">Simulate a successful credit card payment</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="payment_choice" id="failure" value="failure">
+                                                <label class="form-check-label" for="failure">
+                                                    <i class="bi bi-x-circle text-danger me-1"></i>
+                                                    <strong>Failed Payment</strong>
+                                                    <small class="d-block text-muted">Simulate insufficient funds or card decline</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="payment_choice" id="cancel" value="cancel">
+                                                <label class="form-check-label" for="cancel">
+                                                    <i class="bi bi-arrow-left-circle text-warning me-1"></i>
+                                                    <strong>Cancel Payment</strong>
+                                                    <small class="d-block text-muted">Simulate customer cancelling checkout</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr>
+
+                                <!-- Fake Credit Card Form -->
+                                <div class="mb-4">
+                                    <label class="form-label fw-semibold">Credit Card Information <span class="text-muted">(Demo Only)</span></label>
+                                    
+                                    <div class="mb-3">
+                                        <label for="card-number" class="form-label">Card Number</label>
+                                        <input type="text" class="form-control" id="card-number" value="4242 4242 4242 4242" readonly>
+                                        <small class="text-muted">Test card number (read-only)</small>
+                                    </div>
+
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <label for="card-expiry" class="form-label">Expiry Date</label>
+                                            <input type="text" class="form-control" id="card-expiry" value="12/26" readonly>
+                                        </div>
+                                        <div class="col-6">
+                                            <label for="card-cvc" class="form-label">CVC</label>
+                                            <input type="text" class="form-control" id="card-cvc" value="123" readonly>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="card-name" class="form-label">Cardholder Name</label>
+                                        <input type="text" class="form-control" id="card-name" value="Flash Studio Customer" readonly>
+                                    </div>
+                                </div>
+
+                                <!-- Security Notice -->
+                                <div class="alert alert-info d-flex align-items-start">
+                                    <i class="bi bi-info-circle me-2 mt-1"></i>
+                                    <div class="small">
+                                        <strong>Testing Mode:</strong> This is a fake Stripe checkout for demonstration purposes. 
+                                        No real payment will be processed. Select your desired outcome above and click "Complete Payment" to proceed.
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="bi bi-credit-card me-2"></i>
+                                        Complete Payment - {{ order.total_display }}
+                                    </button>
+                                    <a href="{{ url_for('public.cart') }}" class="btn btn-outline-secondary">
+                                        <i class="bi bi-arrow-left me-1"></i>
+                                        Back to Cart
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Security Badges -->
+                    <div class="text-center mt-4">
+                        <div class="d-flex justify-content-center align-items-center text-muted small">
+                            <i class="bi bi-shield-lock me-2"></i>
+                            <span>Secured by Stripe</span>
+                            <span class="mx-2">•</span>
+                            <i class="bi bi-lock me-1"></i>
+                            <span>256-bit SSL</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Session Info (for debugging) -->
+{% if config.DEBUG %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h6 class="mb-0">Debug Info</h6>
+        </div>
+        <div class="card-body small">
+            <strong>Session ID:</strong> {{ session_id }}<br>
+            <strong>Order Status:</strong> {{ order.status }}<br>
+            <strong>Created:</strong> {{ order.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Add some interactivity to the fake form
+    document.addEventListener('DOMContentLoaded', function() {
+        const paymentChoices = document.querySelectorAll('input[name="payment_choice"]');
+        const completeButton = document.querySelector('button[type="submit"]');
+        
+        paymentChoices.forEach(choice => {
+            choice.addEventListener('change', function() {
+                const buttonText = completeButton.querySelector('.bi').nextSibling;
+                
+                switch(this.value) {
+                    case 'success':
+                        completeButton.className = 'btn btn-primary btn-lg';
+                        completeButton.innerHTML = '<i class="bi bi-credit-card me-2"></i>Complete Payment - {{ order.total_display }}';
+                        break;
+                    case 'failure':
+                        completeButton.className = 'btn btn-danger btn-lg';
+                        completeButton.innerHTML = '<i class="bi bi-x-circle me-2"></i>Simulate Payment Failure';
+                        break;
+                    case 'cancel':
+                        completeButton.className = 'btn btn-warning btn-lg';
+                        completeButton.innerHTML = '<i class="bi bi-arrow-left-circle me-2"></i>Cancel Payment';
+                        break;
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

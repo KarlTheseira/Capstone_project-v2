@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}Payment Successful - Flash Studio{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-7">
+            
+            <!-- Success Header -->
+            <div class="text-center mb-5">
+                <div class="mb-4">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                </div>
+                <h1 class="h2 text-success mb-2">Payment Successful!</h1>
+                <p class="lead text-muted">Your order has been confirmed and is being processed.</p>
+            </div>
+
+            <!-- Order Details Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-receipt me-2"></i>
+                        Order Confirmation
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <h6 class="text-muted mb-1">Order Number</h6>
+                            <p class="h5 text-primary mb-0">#{{ "ORD%05d"|format(order.id) }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <h6 class="text-muted mb-1">Total Paid</h6>
+                            <p class="h5 text-success mb-0">{{ order.total_display }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <h6 class="text-muted mb-1">Payment Method</h6>
+                            <p class="mb-0">
+                                <i class="bi bi-credit-card me-1"></i>
+                                Credit Card (Test)
+                            </p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <h6 class="text-muted mb-1">Order Date</h6>
+                            <p class="mb-0">{{ order.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                        </div>
+                        <div class="col-12">
+                            <h6 class="text-muted mb-1">Customer Email</h6>
+                            <p class="mb-0">{{ order.customer_email }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Items -->
+            {% if order.items %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-bag-check me-2"></i>
+                        Order Items ({{ order.item_count }} items)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for item in order.items %}
+                    <div class="row align-items-center py-3 {% if not loop.last %}border-bottom{% endif %}">
+                        <div class="col-md-8">
+                            <h6 class="mb-1">{{ item.product.title }}</h6>
+                            <div class="text-muted small">
+                                <span class="me-3">
+                                    <i class="bi bi-aspect-ratio me-1"></i>
+                                    Quantity: {{ item.quantity }}
+                                </span>
+                                <span class="me-3">
+                                    <i class="bi bi-tag me-1"></i>
+                                    Unit Price: S$ {{ "%.2f"|format(item.unit_price_cents / 100) }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <span class="fw-bold">S$ {{ "%.2f"|format(item.unit_price_cents * item.quantity / 100) }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <!-- Total -->
+                    <div class="row align-items-center pt-3 mt-3 border-top">
+                        <div class="col-md-8">
+                            <h5 class="mb-0">Total</h5>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <h4 class="mb-0 text-success">{{ order.total_display }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Next Steps -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history me-2"></i>
+                        What Happens Next?
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-4 text-center">
+                            <div class="mb-3">
+                                <i class="bi bi-envelope-check text-primary" style="font-size: 2rem;"></i>
+                            </div>
+                            <h6>Email Confirmation</h6>
+                            <p class="small text-muted">You'll receive an order confirmation email shortly at {{ order.customer_email }}</p>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="mb-3">
+                                <i class="bi bi-gear text-info" style="font-size: 2rem;"></i>
+                            </div>
+                            <h6>Processing</h6>
+                            <p class="small text-muted">Our team will start working on your video content within 24 hours</p>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="mb-3">
+                                <i class="bi bi-truck text-success" style="font-size: 2rem;"></i>
+                            </div>
+                            <h6>Delivery</h6>
+                            <p class="small text-muted">Your finished videos will be delivered digitally as agreed</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                {% if session.get('user_id') %}
+                <a href="{{ url_for('public.orders') }}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-list-check me-2"></i>
+                    View My Orders
+                </a>
+                {% endif %}
+                <a href="{{ url_for('public.shop') }}" class="btn btn-outline-primary btn-lg">
+                    <i class="bi bi-shop me-2"></i>
+                    Continue Shopping
+                </a>
+                <a href="{{ url_for('public.home') }}" class="btn btn-outline-secondary btn-lg">
+                    <i class="bi bi-house me-2"></i>
+                    Back to Home
+                </a>
+            </div>
+
+            <!-- Support Notice -->
+            <div class="text-center mt-5">
+                <div class="card border-0 bg-light">
+                    <div class="card-body py-4">
+                        <h6 class="text-muted mb-2">Need Help?</h6>
+                        <p class="small text-muted mb-3">
+                            If you have any questions about your order, please don't hesitate to contact us.
+                        </p>
+                        <div class="d-flex justify-content-center gap-3">
+                            <a href="{{ url_for('public.contact') }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-envelope me-1"></i>Contact Support
+                            </a>
+                            <a href="tel:+6512345678" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-telephone me-1"></i>Call Us
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Confetti Animation (Optional) -->
+<div id="confetti-container" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999;"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Simple confetti effect on success
+    document.addEventListener('DOMContentLoaded', function() {
+        // Create some celebration confetti
+        createConfetti();
+        
+        // Auto-hide confetti after 3 seconds
+        setTimeout(() => {
+            const container = document.getElementById('confetti-container');
+            if (container) {
+                container.style.display = 'none';
+            }
+        }, 3000);
+    });
+
+    function createConfetti() {
+        const container = document.getElementById('confetti-container');
+        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b'];
+        
+        for (let i = 0; i < 50; i++) {
+            const confetti = document.createElement('div');
+            confetti.style.position = 'absolute';
+            confetti.style.width = '10px';
+            confetti.style.height = '10px';
+            confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            confetti.style.left = Math.random() * 100 + '%';
+            confetti.style.animation = `fall ${2 + Math.random() * 3}s linear forwards`;
+            confetti.style.top = '-10px';
+            
+            container.appendChild(confetti);
+        }
+    }
+</script>
+
+<style>
+    @keyframes fall {
+        to {
+            transform: translateY(100vh) rotate(360deg);
+        }
+    }
+</style>
+{% endblock %}

@@ -98,15 +98,53 @@
 
             <hr class="my-4">
 
-            <div class="d-flex justify-content-between align-items-center">
+            <!-- Payment Options -->
+            <div class="mb-4">
+              <h5 class="mb-3">Choose Payment Method</h5>
+              
+              <!-- Stripe Payment -->
+              <div class="card mb-3 border-primary">
+                <div class="card-header bg-primary text-white d-flex align-items-center">
+                  <i class="bi bi-credit-card me-2"></i>
+                  <strong>Secure Card Payment</strong>
+                  <span class="badge bg-success ms-auto">Recommended</span>
+                </div>
+                <div class="card-body">
+                  <p class="mb-3">Pay securely with your credit or debit card using Stripe's secure payment system.</p>
+                  <button type="button" id="stripe-checkout-btn" class="btn btn-primary btn-lg w-100">
+                    <i class="bi bi-shield-lock me-2"></i>
+                    Pay with Stripe - S$ {{ '%.2f' % (total / 100.0) }}
+                  </button>
+                  <div class="mt-2 text-center">
+                    <small class="text-muted d-flex align-items-center justify-content-center">
+                      <i class="bi bi-shield-check me-1"></i>
+                      Secured by Stripe • SSL Encrypted
+                    </small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Alternative: Direct Order (Original Method) -->
+              <div class="card border-light">
+                <div class="card-header bg-light d-flex align-items-center">
+                  <i class="bi bi-receipt me-2"></i>
+                  <strong>Direct Order</strong>
+                  <span class="badge bg-secondary ms-auto">Alternative</span>
+                </div>
+                <div class="card-body">
+                  <p class="mb-3">Place order directly and pay via bank transfer or other arranged methods.</p>
+                  <button class="btn btn-outline-primary btn-lg w-100" type="submit">
+                    <i class="bi bi-file-plus me-2"></i>
+                    Place Order - S$ {{ '%.2f' % (total / 100.0) }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-start">
               <a href="{{ url_for('public.cart') }}" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i> Back to Cart
               </a>
-              
-              <button class="btn btn-primary btn-lg px-4" type="submit">
-                <i class="bi bi-credit-card me-2"></i>
-                Place Order (S$ {{ '%.2f' % (total / 100.0) }})
-              </button>
             </div>
 
           </form>
@@ -221,7 +259,98 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
+
+  // Stripe Checkout Handler
+  const stripeCheckoutBtn = document.getElementById('stripe-checkout-btn');
+  if (stripeCheckoutBtn) {
+    stripeCheckoutBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      // Validate form first
+      const form = document.querySelector('.checkout-form');
+      if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        
+        // Show alert for form validation
+        const firstInvalid = form.querySelector(':invalid');
+        if (firstInvalid) {
+          firstInvalid.focus();
+          showToast('Please fill in all required fields before proceeding to payment.', 'warning');
+          return;
+        }
+      }
+      
+      // Disable button and show loading
+      stripeCheckoutBtn.disabled = true;
+      stripeCheckoutBtn.innerHTML = '<i class="spinner-border spinner-border-sm me-2"></i>Redirecting to Stripe...';
+      
+      // Create Stripe checkout session
+      fetch('/payment/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin'
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        
+        // Redirect to Stripe checkout
+        window.location.href = data.checkout_url;
+      })
+      .catch(error => {
+        console.error('Checkout error:', error);
+        showToast('Failed to start checkout process. Please try again.', 'danger');
+        
+        // Reset button
+        stripeCheckoutBtn.disabled = false;
+        stripeCheckoutBtn.innerHTML = '<i class="bi bi-shield-lock me-2"></i>Pay with Stripe - S$ {{ "%.2f"|format(total / 100.0) }}';
+      });
+    });
+  }
 });
+
+// Toast notification function
+function showToast(message, type = 'info') {
+  // Create toast element
+  const toast = document.createElement('div');
+  toast.className = `toast align-items-center text-bg-${type} border-0`;
+  toast.setAttribute('role', 'alert');
+  toast.setAttribute('aria-live', 'assertive');
+  toast.setAttribute('aria-atomic', 'true');
+  
+  toast.innerHTML = `
+    <div class="d-flex">
+      <div class="toast-body">
+        ${message}
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  `;
+  
+  // Add to toast container or create one
+  let container = document.querySelector('.toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+    container.style.zIndex = '1055';
+    document.body.appendChild(container);
+  }
+  
+  container.appendChild(toast);
+  
+  // Show toast
+  const bsToast = new bootstrap.Toast(toast);
+  bsToast.show();
+  
+  // Remove from DOM after hiding
+  toast.addEventListener('hidden.bs.toast', () => {
+    toast.remove();
+  });
+}
 </script>
 
 {% endblock %}

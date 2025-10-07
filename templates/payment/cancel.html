@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}Payment Cancelled - Flash Studio{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            
+            <!-- Cancel Header -->
+            <div class="text-center mb-5">
+                <div class="mb-4">
+                    <i class="bi bi-x-circle-fill text-warning" style="font-size: 4rem;"></i>
+                </div>
+                <h1 class="h2 text-warning mb-2">Payment Cancelled</h1>
+                <p class="lead text-muted">Your payment was not completed. No charges have been made to your account.</p>
+            </div>
+
+            <!-- What Happened Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        What Happened?
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Your payment could not be completed for one of the following reasons:</p>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="bi bi-arrow-right text-muted me-2"></i>
+                            You cancelled the payment process
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-arrow-right text-muted me-2"></i>
+                            Your payment method was declined
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-arrow-right text-muted me-2"></i>
+                            There was a technical issue during checkout
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-arrow-right text-muted me-2"></i>
+                            The payment session expired
+                        </li>
+                    </ul>
+                    <div class="alert alert-info d-flex align-items-center mt-3">
+                        <i class="bi bi-shield-check me-2"></i>
+                        <small><strong>Don't worry:</strong> No payment has been processed and your cart items are still saved.</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Next Steps -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-arrow-clockwise me-2"></i>
+                        Try Again
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Here's what you can do next:</p>
+                    
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-cart-check text-primary me-3 mt-1" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <h6>Return to Cart</h6>
+                                    <p class="small text-muted mb-2">Your items are still in your cart. You can review and try checking out again.</p>
+                                    <a href="{{ url_for('public.cart') }}" class="btn btn-primary btn-sm">
+                                        <i class="bi bi-cart me-1"></i>View Cart
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-credit-card text-info me-3 mt-1" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <h6>Different Payment Method</h6>
+                                    <p class="small text-muted mb-2">Try using a different credit card or payment method.</p>
+                                    <a href="{{ url_for('public.checkout') }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Try Again
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-shop text-success me-3 mt-1" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <h6>Continue Shopping</h6>
+                                    <p class="small text-muted mb-2">Browse our services and add more items to your cart.</p>
+                                    <a href="{{ url_for('public.shop') }}" class="btn btn-outline-success btn-sm">
+                                        <i class="bi bi-shop me-1"></i>Shop Now
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-headset text-secondary me-3 mt-1" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <h6>Get Support</h6>
+                                    <p class="small text-muted mb-2">Contact our team if you need assistance with your order.</p>
+                                    <a href="{{ url_for('public.contact') }}" class="btn btn-outline-secondary btn-sm">
+                                        <i class="bi bi-envelope me-1"></i>Contact Us
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Payment Issues -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-question-circle me-2"></i>
+                        Common Payment Issues
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="paymentFaq">
+                        
+                        <!-- Card Declined -->
+                        <div class="accordion-item">
+                            <h6 class="accordion-header" id="headingOne">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
+                                    <i class="bi bi-credit-card-2-back me-2"></i>
+                                    My card was declined
+                                </button>
+                            </h6>
+                            <div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#paymentFaq">
+                                <div class="accordion-body">
+                                    <p class="mb-2">Card declines can happen for several reasons:</p>
+                                    <ul class="small">
+                                        <li>Insufficient funds in your account</li>
+                                        <li>Card has expired or is not activated</li>
+                                        <li>Incorrect card details entered</li>
+                                        <li>Your bank's fraud protection triggered</li>
+                                    </ul>
+                                    <p class="small mb-0"><strong>Solution:</strong> Contact your bank or try a different payment method.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- International Cards -->
+                        <div class="accordion-item">
+                            <h6 class="accordion-header" id="headingTwo">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
+                                    <i class="bi bi-globe me-2"></i>
+                                    International card issues
+                                </button>
+                            </h6>
+                            <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#paymentFaq">
+                                <div class="accordion-body">
+                                    <p class="mb-2">If you're using an international card:</p>
+                                    <ul class="small">
+                                        <li>Ensure international transactions are enabled</li>
+                                        <li>Check with your bank about overseas spending limits</li>
+                                        <li>Verify your billing address matches your bank records</li>
+                                    </ul>
+                                    <p class="small mb-0"><strong>Currency:</strong> All payments are processed in SGD (Singapore Dollars).</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Technical Issues -->
+                        <div class="accordion-item">
+                            <h6 class="accordion-header" id="headingThree">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
+                                    <i class="bi bi-gear me-2"></i>
+                                    Technical problems
+                                </button>
+                            </h6>
+                            <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#paymentFaq">
+                                <div class="accordion-body">
+                                    <p class="mb-2">If you're experiencing technical issues:</p>
+                                    <ul class="small">
+                                        <li>Clear your browser cache and cookies</li>
+                                        <li>Try using a different browser or device</li>
+                                        <li>Disable browser extensions temporarily</li>
+                                        <li>Check your internet connection is stable</li>
+                                    </ul>
+                                    <p class="small mb-0"><strong>Still having issues?</strong> Contact our support team for assistance.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                <a href="{{ url_for('public.cart') }}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-cart-check me-2"></i>
+                    Return to Cart
+                </a>
+                <a href="{{ url_for('public.shop') }}" class="btn btn-outline-primary btn-lg">
+                    <i class="bi bi-shop me-2"></i>
+                    Continue Shopping
+                </a>
+            </div>
+
+            <!-- Support Contact -->
+            <div class="text-center mt-5">
+                <div class="card border-0 bg-light">
+                    <div class="card-body py-4">
+                        <h6 class="text-muted mb-2">
+                            <i class="bi bi-headset me-2"></i>
+                            Need Immediate Help?
+                        </h6>
+                        <p class="small text-muted mb-3">
+                            Our customer support team is here to assist you with any payment issues.
+                        </p>
+                        <div class="d-flex justify-content-center gap-3">
+                            <a href="{{ url_for('public.contact') }}" class="btn btn-outline-primary">
+                                <i class="bi bi-envelope me-1"></i>Email Support
+                            </a>
+                            <a href="tel:+6512345678" class="btn btn-outline-primary">
+                                <i class="bi bi-telephone me-1"></i>Call: +65 1234 5678
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
