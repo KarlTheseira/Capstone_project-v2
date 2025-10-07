@@ -3,7 +3,8 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h1 class="h3 mb-0">Homepage Videos</h1>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 align-items-center">
+    <button type="button" id="toggleEditBtn" class="btn btn-outline-warning btn-sm" data-active="false">Edit Mode</button>
     <a href="{{ url_for('admin_videos.new_video') }}" class="btn btn-primary btn-sm">Add Video</a>
     <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">Back</a>
   </div>
@@ -30,18 +31,66 @@
         {% if featured %}
           <ul class="list-group list-group-flush">
             {% for product in featured %}
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                  <strong>{{ product.title }}</strong>
-                  {% if product.video_hosting_type == 'google_drive' %}
-                    <span class="badge bg-info ms-2">Drive</span>
-                  {% else %}
-                    <span class="badge bg-secondary ms-2">Local</span>
-                  {% endif %}
+              <li class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div class="me-3 flex-grow-1">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <div>
+                        <strong>{{ product.title }}</strong>
+                        {% if product.video_hosting_type == 'google_drive' %}
+                          <span class="badge bg-info ms-2">Drive</span>
+                        {% else %}
+                          <span class="badge bg-secondary ms-2">Local</span>
+                        {% endif %}
+                      </div>
+                      <div class="btn-group btn-group-sm">
+                        <form method="post" action="{{ url_for('admin_videos.unfeature_video', product_id=product.id) }}" class="mb-0">
+                          <button class="btn btn-outline-danger" onclick="return confirm('Remove from homepage?')">Remove</button>
+                        </form>
+                      </div>
+                    </div>
+                    <small class="text-muted">{{ product.category or 'Uncategorized' }}{% if product.client_name %} · {{ product.client_name }}{% endif %}</small>
+                    {% if product.client_testimonial %}
+                      <div class="mt-1"><em class="text-muted">“{{ product.client_testimonial|truncate(80) }}”</em></div>
+                    {% endif %}
+                  </div>
                 </div>
-                <form method="post" action="{{ url_for('admin_videos.unfeature_video', product_id=product.id) }}" class="mb-0">
-                  <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove from homepage?')">Remove</button>
-                </form>
+                <div class="edit-form mt-3 p-3 border rounded bg-light d-none">
+                  <form method="post" action="{{ url_for('admin_videos.update_homepage_video', product_id=product.id) }}" enctype="multipart/form-data" class="small row g-2">
+                    <div class="col-md-4">
+                      <label class="form-label mb-0">Title</label>
+                      <input type="text" name="title" class="form-control form-control-sm" value="{{ product.title }}" required>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label mb-0">Price (cents)</label>
+                      <input type="number" name="price_cents" class="form-control form-control-sm" value="{{ product.price_cents }}">
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label mb-0">Category</label>
+                      <input type="text" name="category" class="form-control form-control-sm" value="{{ product.category }}">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label mb-0">Client</label>
+                      <input type="text" name="client_name" class="form-control form-control-sm" value="{{ product.client_name }}">
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label mb-0">Description</label>
+                      <textarea name="description" class="form-control form-control-sm" rows="2">{{ product.description }}</textarea>
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label mb-0">Client Testimonial</label>
+                      <textarea name="client_testimonial" class="form-control form-control-sm" rows="2">{{ product.client_testimonial }}</textarea>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label mb-0">Replace Thumbnail</label>
+                      <input type="file" name="thumbnail" accept="image/*" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                      <button class="btn btn-sm btn-success me-2">Save</button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary cancel-edit">Cancel</button>
+                    </div>
+                  </form>
+                </div>
               </li>
             {% endfor %}
           </ul>
@@ -95,4 +144,31 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const toggleBtn = document.getElementById('toggleEditBtn');
+  const list = document.querySelectorAll('.list-group-item');
+  toggleBtn.addEventListener('click', () => {
+    const active = toggleBtn.getAttribute('data-active') === 'true';
+    const newState = !active;
+    toggleBtn.setAttribute('data-active', newState);
+    toggleBtn.classList.toggle('btn-warning', !active);
+    toggleBtn.classList.toggle('btn-outline-warning', active);
+    toggleBtn.textContent = newState ? 'Edit Mode (On)' : 'Edit Mode';
+    document.querySelectorAll('.edit-form').forEach(f => {
+      if (newState) { f.classList.remove('d-none'); } else { f.classList.add('d-none'); }
+    });
+  });
+  document.querySelectorAll('.cancel-edit').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      const formWrapper = btn.closest('.edit-form');
+      formWrapper.classList.add('d-none');
+    });
+  });
+});
+</script>
 {% endblock %}

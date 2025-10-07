@@ -68,6 +68,54 @@ def new_video():
 				flash(e, 'error')
 			return render_template('admin_new_video.html')
 
+		@admin_videos_bp.route('/homepage-videos/update/<int:product_id>', methods=['POST'])
+		def update_homepage_video(product_id):
+			"""Update metadata (and optional thumbnail) for a featured video."""
+			require_admin()
+			product = Product.query.get_or_404(product_id)
+			# Basic fields allowed to edit
+			title = request.form.get('title', '').strip()
+			description = request.form.get('description', '').strip()
+			category = request.form.get('category', '').strip()
+			client_name = request.form.get('client_name', '').strip()
+			client_testimonial = request.form.get('client_testimonial', '').strip()
+			price_cents = request.form.get('price_cents', type=int)
+
+			if not title:
+				flash('Title is required.', 'error')
+				return redirect(url_for('admin_videos.manage_homepage_videos'))
+
+			product.title = title
+			product.description = description or product.description
+			product.category = category or product.category
+			product.client_name = client_name or product.client_name
+			product.client_testimonial = client_testimonial or product.client_testimonial
+			if price_cents is not None:
+				product.price_cents = price_cents
+
+			# Optional new thumbnail
+			thumb_file = request.files.get('thumbnail')
+			if thumb_file and thumb_file.filename:
+				try:
+					uploads_dir = os.path.join(current_app.root_path, 'static', 'uploads')
+					os.makedirs(uploads_dir, exist_ok=True)
+					secure_name = secure_filename(thumb_file.filename)
+					thumb_path = os.path.join(uploads_dir, secure_name)
+					thumb_file.save(thumb_path)
+					product.video_thumbnail = secure_name
+					# If media_key previously pointed to old thumbnail, update it too
+					product.media_key = product.media_key or secure_name
+				except Exception as e:
+					flash(f'Thumbnail update failed: {e}', 'warning')
+
+			try:
+				db.session.commit()
+				flash('Video updated.', 'success')
+			except Exception as e:
+				db.session.rollback()
+				flash(f'Update failed: {e}', 'error')
+			return redirect(url_for('admin_videos.manage_homepage_videos'))
+
 		# Save video file to local storage (respect active backend if later extended)
 		storage_backend = current_app.extensions.get('active_storage')
 		saved_video_key = None
