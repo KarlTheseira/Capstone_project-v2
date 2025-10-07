@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, render_template, redirect, url_fo
 from sqlalchemy.exc import SQLAlchemyError
 from models import db, Order, OrderItem, Product, User
 from utils.dummy_payments import provider as dummy_provider
+from utils.email_service import send_order_confirmation_email, send_payment_failure_email
 import os
 import stripe
 import logging
@@ -352,10 +353,30 @@ def complete_fake_checkout():
             order.stripe_payment_intent = f'pi_fake_{datetime.now().strftime("%Y%m%d%H%M%S")}'
             db.session.commit()
             
+            # Send confirmation email (don't let email failures break the payment process)
+            email_sent = False
+            try:
+                email_result = send_order_confirmation_email(order)
+                if email_result.get('success'):
+                    logger.info(f"Order confirmation email sent for order {order.id}")
+                    email_sent = True
+                else:
+                    logger.warning(f"Failed to send confirmation email for order {order.id}: {email_result.get('error')}")
+            except Exception as e:
+                logger.error(f"Error sending confirmation email for order {order.id}: {e}")
+                logger.error(traceback.format_exc())
+                # Continue processing - email failure shouldn't break the payment flow
+            
             # Clear cart and session
             session.pop('cart', None)
             session.pop('pending_order_id', None)
             session.modified = True
+            
+            # Update success message based on email status
+            if email_sent:
+                flash("Payment successful! A confirmation email has been sent to your email address.", "success")
+            else:
+                flash("Payment successful! Please save your order number for reference. If you don't receive a confirmation email, please contact support.", "success")
             
             return redirect(url_for('payment.success', session_id=f'cs_fake_{order.id}'))
             
@@ -364,7 +385,15 @@ def complete_fake_checkout():
             order.status = 'failed'
             db.session.commit()
             
-            flash("Payment failed. Please try again.", "danger")
+            # Send failure notification email
+            try:
+                email_result = send_payment_failure_email(order, "Payment was declined by the card issuer")
+                if email_result.get('success'):
+                    logger.info(f"Payment failure notification sent for order {order.id}")
+            except Exception as e:
+                logger.error(f"Error sending payment failure notification: {e}")
+            
+            flash("Payment failed. Please check your payment details and try again.", "danger")
             return redirect(url_for('payment.cancel'))
             
         else:
@@ -372,13 +401,14 @@ def complete_fake_checkout():
             order.status = 'cancelled'
             db.session.commit()
             
-            flash("Payment was cancelled.", "warning")
+            flash("Payment was cancelled. Your items are still in your cart.", "warning")
             return redirect(url_for('payment.cancel'))
             
     except Exception as e:
         logger.error(f"Error completing fake checkout: {e}")
+        logger.error(traceback.format_exc())
         db.session.rollback()
-        flash("An error occurred during payment processing.", "danger")
+        flash("An error occurred during payment processing. Please try again.", "danger")
         return redirect(url_for('payment.cancel'))
 
 
@@ -395,18 +425,27 @@ def success():
             order_id = int(session_id.split('_')[-1])
             order = db.session.get(Order, order_id)
         except (ValueError, IndexError):
-            pass
+            logger.warning(f"Could not extract order ID from session_id: {session_id}")
     
     if not order:
-        # Try to get from session
+        # Try to get from session as fallback
         pending_order_id = session.get('pending_order_id')
         if pending_order_id:
             order = db.session.get(Order, pending_order_id)
+            logger.info(f"Found order from session: {order.id}" if order else "No order found in session")
     
     if order and order.status == 'paid':
+        # Ensure order items are loaded (for template display)
+        db.session.refresh(order)
+        logger.info(f"Displaying success page for paid order {order.id}")
         return render_template('payment/success.html', order=order)
+    elif order:
+        logger.warning(f"Order {order.id} found but status is {order.status}, not paid")
+        flash(f"Order found but payment status is {order.status}. Please contact support if you believe this is an error.", "warning")
+        return redirect(url_for('public.shop'))
     else:
-        flash("Payment confirmation not found", "warning")
+        logger.warning("No order found for success page")
+        flash("Payment confirmation not found. Please check your email for order details or contact support.", "warning")
         return redirect(url_for('public.shop'))
 
 

@@ -37,3 +37,9 @@ class Config:
     CURRENCY = os.getenv("CURRENCY", "sgd")
     PAYMENT_SUCCESS_URL = os.getenv("PAYMENT_SUCCESS_URL", "http://127.0.0.1:5001/payment/success")
     PAYMENT_CANCEL_URL = os.getenv("PAYMENT_CANCEL_URL", "http://127.0.0.1:5001/payment/cancel")
+    
+    # Email Service Configuration
+    EMAIL_FUNCTION_URL = os.getenv(
+        "EMAIL_FUNCTION_URL", 
+        "https://flashstudio-functions.azurewebsites.net/api/EmailNotifications"
+    )
