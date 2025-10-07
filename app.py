@@ -154,11 +154,25 @@ def internal_error(error):
 def init_db():
     """Initialize database with sample data if empty"""
     with app.app_context():
-        # Only create tables if they don't exist
+        # Create tables if absent
         db.create_all()
-        
-        # Check if we need to add some initial data
-        if Product.query.count() == 0:
+
+        # Attempt column patch for legacy SQLite DBs missing newer fields
+        _patch_sqlite_product_columns()
+
+        # Check if we need to add some initial data (guard with retry if columns added)
+        need_seed = False
+        try:
+            need_seed = (Product.query.count() == 0)
+        except Exception as e:
+            app.logger.warning("[init_db] First count failed (%s); attempting schema patch then retry", e)
+            _patch_sqlite_product_columns(force=True)
+            try:
+                need_seed = (Product.query.count() == 0)
+            except Exception as e2:
+                app.logger.error("[init_db] Second count failed after patch: %s", e2)
+                need_seed = False
+        if need_seed:
             # Add some sample products with video content for showreel
             sample_products = [
                 Product(
@@ -208,6 +222,50 @@ def init_db():
                 db.session.add(product)
             
             db.session.commit()
+
+def _patch_sqlite_product_columns(force: bool = False):
+    """Add missing Product columns for legacy local SQLite DBs.
+
+    Only applies when using SQLite and columns (google_drive_video_id, google_drive_video_url,
+    video_hosting_type, project_date, client_name, client_testimonial, available_sizes, available_frames)
+    are missing. Safe no-op if they already exist.
+    """
+    engine = db.get_engine()
+    if 'sqlite' not in str(engine.url):
+        return
+    from sqlalchemy import text
+    # Introspect existing columns
+    existing_cols = set()
+    try:
+        result = engine.execute(text("PRAGMA table_info(product)"))
+        for row in result:
+            existing_cols.add(row[1])  # column name
+    except Exception as e:
+        app.logger.warning("[schema] Could not inspect product table: %s", e)
+        return
+
+    alterations = []
+    def add(col, ddl):
+        if col not in existing_cols:
+            alterations.append((col, ddl))
+
+    add('google_drive_video_id', "ALTER TABLE product ADD COLUMN google_drive_video_id VARCHAR(512)")
+    add('google_drive_video_url', "ALTER TABLE product ADD COLUMN google_drive_video_url VARCHAR(1024)")
+    add('video_hosting_type', "ALTER TABLE product ADD COLUMN video_hosting_type VARCHAR(32) DEFAULT 'local'")
+    add('project_date', "ALTER TABLE product ADD COLUMN project_date DATE")
+    add('client_name', "ALTER TABLE product ADD COLUMN client_name VARCHAR(255)")
+    add('client_testimonial', "ALTER TABLE product ADD COLUMN client_testimonial TEXT")
+    add('available_sizes', "ALTER TABLE product ADD COLUMN available_sizes TEXT")
+    add('available_frames', "ALTER TABLE product ADD COLUMN available_frames TEXT")
+
+    if not alterations and not force:
+        return
+    for col, stmt in alterations:
+        try:
+            engine.execute(text(stmt))
+            app.logger.info("[schema] Added missing column: %s", col)
+        except Exception as e:
+            app.logger.warning("[schema] Failed to add column %s: %s", col, e)
 
 if __name__ == "__main__":
     # Initialize database with sample data if needed
