@@ -20,11 +20,24 @@ def manage_homepage_videos():
 	require_admin()
 	# Featured products with video content (local or drive)
 	featured = Product.query.filter(Product.featured == True).order_by(Product.created_at.desc()).all()
-	# Candidates: video products not yet featured
-	candidates = Product.query.filter(
-		Product.featured == False,
-		(Product.video_key.isnot(None)) | (Product.google_drive_video_id.isnot(None))
-	).order_by(Product.created_at.desc()).all()
+	# Candidates: video products not yet featured; handle cases where google_drive fields may be absent
+	candidates = []
+	try:
+		candidates = Product.query.filter(
+			Product.featured == False,
+			(Product.video_key.isnot(None)) | (Product.google_drive_video_id.isnot(None))
+		).order_by(Product.created_at.desc()).all()
+	except Exception as e:
+		# Fallback: only use local video_key
+		from flask import current_app
+		current_app.logger.warning(f"[admin_videos] Fallback candidates query (drive cols missing?): {e}")
+		try:
+			candidates = Product.query.filter(
+				Product.featured == False,
+				Product.video_key.isnot(None)
+			).order_by(Product.created_at.desc()).all()
+		except Exception as inner:
+			current_app.logger.error(f"[admin_videos] Failed fallback candidates query: {inner}")
 	return render_template('admin_homepage_videos.html', featured=featured, candidates=candidates)
 
 @admin_videos_bp.route('/homepage-videos/feature/<int:product_id>', methods=['POST'])

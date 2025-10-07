@@ -17,9 +17,9 @@ from routes.public import public_bp
 from routes.admin import admin_bp
 from routes.auth import auth_bp
 from routes.upload import upload_bp
-from routes.gdrive import gdrive_bp
 from routes.payment import payment_bp
 from routes.admin_videos import admin_videos_bp
+from routes.video import video_bp, init_videos
 
 
 app = Flask(__name__)
@@ -56,9 +56,20 @@ app.register_blueprint(public_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(upload_bp)
-app.register_blueprint(gdrive_bp)
+# Register Google Drive routes only if drive backend active
+if backend == 'drive':
+    from routes.gdrive import gdrive_bp
+    app.register_blueprint(gdrive_bp)
 app.register_blueprint(payment_bp)
 app.register_blueprint(admin_videos_bp)
+app.register_blueprint(video_bp)
+
+# Initialize sample / generated video assets (safe no-op if already exist)
+try:
+    with app.app_context():
+        init_videos()
+except Exception as e:
+    logging.warning("[video] Initialization skipped or failed: %s", e)
 
 # -------------------------------------------------------------
 # Diagnostic Google Drive routes (can be removed in production)
