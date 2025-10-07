@@ -19,6 +19,7 @@ from routes.auth import auth_bp
 from routes.upload import upload_bp
 from routes.gdrive import gdrive_bp
 from routes.payment import payment_bp
+from routes.admin_videos import admin_videos_bp
 
 
 app = Flask(__name__)
@@ -57,6 +58,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(upload_bp)
 app.register_blueprint(gdrive_bp)
 app.register_blueprint(payment_bp)
+app.register_blueprint(admin_videos_bp)
 
 # -------------------------------------------------------------
 # Diagnostic Google Drive routes (can be removed in production)

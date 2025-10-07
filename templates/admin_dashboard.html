@@ -32,8 +32,8 @@
       <a class="btn btn-outline-secondary" href="{{ url_for('admin.customization_options') }}">
         <i class="bi bi-sliders me-1"></i>Options
       </a>
-      <!-- Replaced broken endpoint admin_videos.manage_homepage_videos with existing gdrive.manage_videos -->
-      <a class="btn btn-outline-warning" href="{{ url_for('gdrive.manage_videos') }}">
+      <!-- Link to homepage videos management -->
+      <a class="btn btn-outline-warning" href="{{ url_for('admin_videos.manage_homepage_videos') }}">
         <i class="bi bi-camera-video me-1"></i>Videos
       </a>
     </div>
