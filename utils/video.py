@@ -1,12 +1,6 @@
-import os
+import cv2
 import numpy as np
-import logging
-
-try:
-    import cv2  # noqa
-except Exception as e:  # pragma: no cover
-    cv2 = None
-    logging.warning("OpenCV import failed (%s). Video generation disabled.", e)
+import os
 
 def create_video(filename, config=None):
     """
@@ -42,12 +36,7 @@ def create_video(filename, config=None):
         config = {}
     config = {**default_config, **config}
     
-    if cv2 is None:
-        logging.warning("create_video called but OpenCV unavailable; skipping generation for %s", filename)
-        return False
-
-    # Initialize video writer (guard if directory missing)
-    os.makedirs(os.path.dirname(filename) or '.', exist_ok=True)
+    # Initialize video writer
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(filename, fourcc, config['fps'], config['size'])
     
@@ -142,8 +131,6 @@ def create_wave_frame(t, config):
 
 def add_text_to_frame(frame, text, colors):
     """Add text with shadow to frame."""
-    if cv2 is None:
-        return
     font = cv2.FONT_HERSHEY_SIMPLEX
     font_scale = 2
     thickness = 3

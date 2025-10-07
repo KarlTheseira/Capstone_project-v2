@@ -1,166 +1,445 @@
-{% extends 'base.html' %}
-{% block title %}Homepage Videos · Admin{% endblock %}
+{% extends "base.html" %}
+{% block title %}Videos Management · Flash Studio Admin{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1 class="h3 mb-0">Videos</h1>
-  <div class="d-flex gap-2 align-items-center">
-    <button type="button" id="toggleEditBtn" class="btn btn-outline-warning btn-sm" data-active="false">Edit Mode</button>
-  <a href="{{ url_for('admin_videos.new_video') }}" class="btn btn-primary btn-sm">Add Video</a>
-    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">Back</a>
-  </div>
-</div>
-
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, msg in messages %}
-      <div class="alert alert-{{ 'warning' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-        {{ msg }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      </div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
-
-<div class="row g-4">
-  <div class="col-lg-6">
-    <div class="card shadow-sm border-0 h-100">
-      <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0">Featured Videos</h5>
-      </div>
-      <div class="card-body">
-        {% if featured %}
-          <ul class="list-group list-group-flush">
-            {% for product in featured %}
-              <li class="list-group-item">
-                <div class="d-flex justify-content-between align-items-start">
-                  <div class="me-3 flex-grow-1">
-                    <div class="d-flex align-items-center justify-content-between">
-                      <div>
-                        <strong>{{ product.title }}</strong>
-                        <span class="badge bg-secondary ms-2">Local</span>
-                      </div>
-                      <div class="btn-group btn-group-sm">
-                        <form method="post" action="{{ url_for('admin_videos.unfeature_video', product_id=product.id) }}" class="mb-0">
-                          <button class="btn btn-outline-danger" onclick="return confirm('Remove from homepage?')">Remove</button>
-                        </form>
-                      </div>
-                    </div>
-                    <small class="text-muted">{{ product.category or 'Uncategorized' }}{% if product.client_name %} · {{ product.client_name }}{% endif %}</small>
-                    {% if product.client_testimonial %}
-                      <div class="mt-1"><em class="text-muted">“{{ product.client_testimonial|truncate(80) }}”</em></div>
-                    {% endif %}
-                  </div>
-                </div>
-                <div class="edit-form mt-3 p-3 border rounded bg-light d-none">
-                  <form method="post" action="{{ url_for('admin_videos.update_homepage_video', product_id=product.id) }}" enctype="multipart/form-data" class="small row g-2">
-                    <div class="col-md-4">
-                      <label class="form-label mb-0">Title</label>
-                      <input type="text" name="title" class="form-control form-control-sm" value="{{ product.title }}" required>
-                    </div>
-                    <div class="col-md-2">
-                      <label class="form-label mb-0">Price (cents)</label>
-                      <input type="number" name="price_cents" class="form-control form-control-sm" value="{{ product.price_cents }}">
-                    </div>
-                    <div class="col-md-2">
-                      <label class="form-label mb-0">Category</label>
-                      <input type="text" name="category" class="form-control form-control-sm" value="{{ product.category }}">
-                    </div>
-                    <div class="col-md-4">
-                      <label class="form-label mb-0">Client</label>
-                      <input type="text" name="client_name" class="form-control form-control-sm" value="{{ product.client_name }}">
-                    </div>
-                    <div class="col-12">
-                      <label class="form-label mb-0">Description</label>
-                      <textarea name="description" class="form-control form-control-sm" rows="2">{{ product.description }}</textarea>
-                    </div>
-                    <div class="col-12">
-                      <label class="form-label mb-0">Client Testimonial</label>
-                      <textarea name="client_testimonial" class="form-control form-control-sm" rows="2">{{ product.client_testimonial }}</textarea>
-                    </div>
-                    <div class="col-md-6">
-                      <label class="form-label mb-0">Replace Thumbnail</label>
-                      <input type="file" name="thumbnail" accept="image/*" class="form-control form-control-sm">
-                    </div>
-                    <div class="col-md-6 d-flex align-items-end">
-                      <button class="btn btn-sm btn-success me-2">Save</button>
-                      <button type="button" class="btn btn-sm btn-outline-secondary cancel-edit">Cancel</button>
-                    </div>
-                  </form>
-                </div>
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-muted mb-0">No featured videos yet.</p>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-6">
-    <div class="card shadow-sm border-0 h-100">
-      <div class="card-header bg-transparent border-0 pb-0">
-        <h5 class="card-title mb-0">Add Video to Homepage</h5>
-      </div>
-      <div class="card-body">
-        {% if candidates %}
-        <div class="table-responsive" style="max-height:420px; overflow:auto;">
-          <table class="table table-sm align-middle mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>Title</th>
-                <th>Type</th>
-                <th style="width:90px;"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for product in candidates %}
-              <tr>
-                <td class="small">{{ product.title }}</td>
-                <td>
-                  <span class="badge bg-secondary">Local</span>
-                </td>
-                <td>
-                  <form method="post" action="{{ url_for('admin_videos.feature_video', product_id=product.id) }}" class="mb-0">
-                    <button class="btn btn-sm btn-primary">Add</button>
-                  </form>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-0">Featured Work Videos</h1>
+            <p class="text-muted">Manage videos displayed on the homepage featured work section</p>
         </div>
-        {% else %}
-          <p class="text-muted mb-0">No eligible videos to add.</p>
-        {% endif %}
-      </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addVideoModal">
+                <i class="bi bi-plus-lg me-1"></i>Add New Video
+            </button>
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+            </a>
+        </div>
     </div>
-  </div>
-</div>
-{% endblock %}
 
-{% block scripts %}
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Featured Videos Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-star-fill me-2"></i>Featured Videos (Shown on Homepage)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if featured_videos %}
+                        <div class="row g-4">
+                            {% for video in featured_videos %}
+                            <div class="col-lg-4 col-md-6">
+                                <div class="card h-100 border">
+                                    <!-- Video Thumbnail -->
+                                    <div class="position-relative">
+                                        {% if video.video_thumbnail %}
+                                            <img src="{{ url_for('static', filename='uploads/' ~ video.video_thumbnail) }}" 
+                                                 class="card-img-top" alt="{{ video.title }}" style="height: 200px; object-fit: cover;">
+                                        {% else %}
+                                            <div class="card-img-top d-flex align-items-center justify-content-center bg-light" style="height: 200px;">
+                                                <i class="bi bi-camera-video display-4 text-muted"></i>
+                                            </div>
+                                        {% endif %}
+                                        
+                                        <!-- Play Button Overlay -->
+                                        <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center">
+                                            <a href="{{ url_for('static', filename='uploads/' ~ video.video_key) }}" 
+                                               target="_blank" class="text-white text-decoration-none">
+                                                <i class="bi bi-play-circle-fill display-4"></i>
+                                            </a>
+                                        </div>
+                                        
+                                        <!-- Duration Badge -->
+                                        {% if video.video_duration %}
+                                            <span class="position-absolute bottom-0 end-0 m-2 px-2 py-1 bg-dark text-white rounded">
+                                                {{ video.duration_display }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Video Info -->
+                                    <div class="card-body">
+                                        <h6 class="card-title">{{ video.title }}</h6>
+                                        <p class="card-text small text-muted">{{ video.description[:100] }}{% if video.description|length > 100 %}...{% endif %}</p>
+                                        
+                                        {% if video.client_name %}
+                                            <small class="text-muted d-block">Client: {{ video.client_name }}</small>
+                                        {% endif %}
+                                        
+                                        {% if video.client_testimonial %}
+                                            <blockquote class="blockquote-footer mt-2">
+                                                <small>{{ video.client_testimonial[:50] }}{% if video.client_testimonial|length > 50 %}...{% endif %}</small>
+                                            </blockquote>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Action Buttons -->
+                                    <div class="card-footer bg-transparent">
+                                        <div class="btn-group w-100">
+                                            <button class="btn btn-outline-primary btn-sm edit-video-btn" 
+                                                    data-video-id="{{ video.id }}"
+                                                    data-title="{{ video.title }}"
+                                                    data-description="{{ video.description }}"
+                                                    data-client-name="{{ video.client_name or '' }}"
+                                                    data-client-testimonial="{{ video.client_testimonial or '' }}"
+                                                    data-duration="{{ video.duration_display or '' }}">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </button>
+                                            <form method="post" action="{{ url_for('admin_videos.toggle_featured', video_id=video.id) }}" class="d-inline">
+                                                <button class="btn btn-outline-warning btn-sm" type="submit">
+                                                    <i class="bi bi-star"></i> Unfeature
+                                                </button>
+                                            </form>
+                                            <form method="post" action="{{ url_for('admin_videos.delete_video', video_id=video.id) }}" 
+                                                  class="d-inline" onsubmit="return confirm('Delete this video?')">
+                                                <button class="btn btn-outline-danger btn-sm" type="submit">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-camera-video display-4 text-muted"></i>
+                            <p class="text-muted mt-2">No featured videos yet. Add some to display on your homepage!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- All Videos Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-collection-play me-2"></i>All Videos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if video_products %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Video</th>
+                                        <th>Title</th>
+                                        <th>Client</th>
+                                        <th>Duration</th>
+                                        <th>Featured</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for video in video_products %}
+                                    <tr>
+                                        <td>
+                                            {% if video.video_thumbnail %}
+                                                <img src="{{ url_for('static', filename='uploads/' ~ video.video_thumbnail) }}" 
+                                                     alt="{{ video.title }}" class="rounded" style="width: 60px; height: 40px; object-fit: cover;">
+                                            {% else %}
+                                                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 60px; height: 40px;">
+                                                    <i class="bi bi-camera-video text-muted"></i>
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>{{ video.title }}</strong>
+                                                <br><small class="text-muted">{{ video.description[:50] }}{% if video.description|length > 50 %}...{% endif %}</small>
+                                            </div>
+                                        </td>
+                                        <td>{{ video.client_name or '-' }}</td>
+                                        <td>{{ video.duration_display or '-' }}</td>
+                                        <td>
+                                            {% if video.featured %}
+                                                <span class="badge bg-success">Featured</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Not Featured</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group">
+                                                <a href="{{ url_for('static', filename='uploads/' ~ video.video_key) }}" 
+                                                   target="_blank" class="btn btn-outline-info btn-sm" title="Preview Video">
+                                                    <i class="bi bi-play"></i>
+                                                </a>
+                                                <button class="btn btn-outline-primary btn-sm edit-video-btn" 
+                                                        data-video-id="{{ video.id }}"
+                                                        data-title="{{ video.title }}"
+                                                        data-description="{{ video.description }}"
+                                                        data-client-name="{{ video.client_name or '' }}"
+                                                        data-client-testimonial="{{ video.client_testimonial or '' }}"
+                                                        data-duration="{{ video.duration_display or '' }}"
+                                                        title="Edit Video">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <form method="post" action="{{ url_for('admin_videos.toggle_featured', video_id=video.id) }}" class="d-inline">
+                                                    <button class="btn btn-outline-warning btn-sm" type="submit" 
+                                                            title="{{ 'Unfeature' if video.featured else 'Feature' }} Video">
+                                                        <i class="bi bi-star{{ '-fill' if video.featured else '' }}"></i>
+                                                    </button>
+                                                </form>
+                                                <form method="post" action="{{ url_for('admin_videos.delete_video', video_id=video.id) }}" 
+                                                      class="d-inline" onsubmit="return confirm('Delete this video?')">
+                                                    <button class="btn btn-outline-danger btn-sm" type="submit" title="Delete Video">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-collection-play display-4 text-muted"></i>
+                            <p class="text-muted mt-2">No videos uploaded yet. Start by adding your first video!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Video Modal -->
+<div class="modal fade" id="addVideoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Video</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{{ url_for('admin_videos.add_video') }}" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <!-- Video Title -->
+                        <div class="col-12">
+                            <label class="form-label">Video Title *</label>
+                            <input type="text" class="form-control" name="title" required 
+                                   placeholder="e.g., Product Commercial">
+                        </div>
+                        
+                        <!-- Description -->
+                        <div class="col-12">
+                            <label class="form-label">Description *</label>
+                            <textarea class="form-control" name="description" rows="3" required
+                                      placeholder="High-end product showcase for luxury brand"></textarea>
+                        </div>
+                        
+                        <!-- Client Information -->
+                        <div class="col-md-6">
+                            <label class="form-label">Client Name</label>
+                            <input type="text" class="form-control" name="client_name" 
+                                   placeholder="e.g., Luxury Brand Co">
+                        </div>
+                        
+                        <!-- Video Duration -->
+                        <div class="col-md-6">
+                            <label class="form-label">Duration (MM:SS)</label>
+                            <input type="text" class="form-control" name="duration" 
+                                   placeholder="e.g., 2:30" pattern="[0-9]+:[0-5][0-9]">
+                        </div>
+                        
+                        <!-- Client Testimonial -->
+                        <div class="col-12">
+                            <label class="form-label">Client Testimonial</label>
+                            <textarea class="form-control" name="client_testimonial" rows="2"
+                                      placeholder="Exceeded our expectations!"></textarea>
+                        </div>
+                        
+                        <!-- Video File Upload -->
+                        <div class="col-md-6">
+                            <label class="form-label">Video File *</label>
+                            <input type="file" class="form-control" name="video_file" required
+                                   accept="video/*">
+                            <div class="form-text">Supported formats: MP4, MOV, AVI</div>
+                        </div>
+                        
+                        <!-- Thumbnail Upload -->
+                        <div class="col-md-6">
+                            <label class="form-label">Thumbnail Image</label>
+                            <input type="file" class="form-control" name="thumbnail_file"
+                                   accept="image/*">
+                            <div class="form-text">JPG, PNG recommended</div>
+                        </div>
+                        
+                        <!-- Featured Checkbox -->
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="featured" id="featured" checked>
+                                <label class="form-check-label" for="featured">
+                                    <strong>Feature on Homepage</strong>
+                                    <div class="form-text">Check to display in the Featured Work section</div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload me-1"></i>Upload Video
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Video Modal -->
+<div class="modal fade" id="editVideoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Video</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="" id="editVideoForm" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <!-- Video Title -->
+                        <div class="col-12">
+                            <label class="form-label">Video Title *</label>
+                            <input type="text" class="form-control" name="title" id="edit_title" required>
+                        </div>
+                        
+                        <!-- Description -->
+                        <div class="col-12">
+                            <label class="form-label">Description *</label>
+                            <textarea class="form-control" name="description" id="edit_description" rows="3" required></textarea>
+                        </div>
+                        
+                        <!-- Client Information -->
+                        <div class="col-md-6">
+                            <label class="form-label">Client Name</label>
+                            <input type="text" class="form-control" name="client_name" id="edit_client_name">
+                        </div>
+                        
+                        <!-- Video Duration -->
+                        <div class="col-md-6">
+                            <label class="form-label">Duration (MM:SS)</label>
+                            <input type="text" class="form-control" name="duration" id="edit_duration" 
+                                   pattern="[0-9]+:[0-5][0-9]">
+                        </div>
+                        
+                        <!-- Client Testimonial -->
+                        <div class="col-12">
+                            <label class="form-label">Client Testimonial</label>
+                            <textarea class="form-control" name="client_testimonial" id="edit_client_testimonial" rows="2"></textarea>
+                        </div>
+                        
+                        <!-- Replace Video File -->
+                        <div class="col-md-6">
+                            <label class="form-label">Replace Video File</label>
+                            <input type="file" class="form-control" name="video_file" accept="video/*">
+                            <div class="form-text">Leave empty to keep current video</div>
+                        </div>
+                        
+                        <!-- Replace Thumbnail -->
+                        <div class="col-md-6">
+                            <label class="form-label">Replace Thumbnail</label>
+                            <input type="file" class="form-control" name="thumbnail_file" accept="image/*">
+                            <div class="form-text">Leave empty to keep current thumbnail</div>
+                        </div>
+                        
+                        <!-- Featured Checkbox -->
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="featured" id="edit_featured">
+                                <label class="form-check-label" for="edit_featured">
+                                    <strong>Feature on Homepage</strong>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-1"></i>Update Video
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
+// Handle edit video buttons
 document.addEventListener('DOMContentLoaded', function() {
-  const toggleBtn = document.getElementById('toggleEditBtn');
-  const list = document.querySelectorAll('.list-group-item');
-  toggleBtn.addEventListener('click', () => {
-    const active = toggleBtn.getAttribute('data-active') === 'true';
-    const newState = !active;
-    toggleBtn.setAttribute('data-active', newState);
-    toggleBtn.classList.toggle('btn-warning', !active);
-    toggleBtn.classList.toggle('btn-outline-warning', active);
-    toggleBtn.textContent = newState ? 'Edit Mode (On)' : 'Edit Mode';
-    document.querySelectorAll('.edit-form').forEach(f => {
-      if (newState) { f.classList.remove('d-none'); } else { f.classList.add('d-none'); }
+    document.querySelectorAll('.edit-video-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const videoId = this.dataset.videoId;
+            const title = this.dataset.title;
+            const description = this.dataset.description;
+            const clientName = this.dataset.clientName;
+            const clientTestimonial = this.dataset.clientTestimonial;
+            const duration = this.dataset.duration;
+            
+            // Populate edit form
+            document.getElementById('edit_title').value = title;
+            document.getElementById('edit_description').value = description;
+            document.getElementById('edit_client_name').value = clientName;
+            document.getElementById('edit_client_testimonial').value = clientTestimonial;
+            document.getElementById('edit_duration').value = duration;
+            
+            // Set form action
+            document.getElementById('editVideoForm').action = `/admin/videos/edit/${videoId}`;
+            
+            // Show modal
+            new bootstrap.Modal(document.getElementById('editVideoModal')).show();
+        });
     });
-  });
-  document.querySelectorAll('.cancel-edit').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.preventDefault();
-      const formWrapper = btn.closest('.edit-form');
-      formWrapper.classList.add('d-none');
-    });
-  });
 });
 </script>
+
+<style>
+.card-img-top {
+    transition: transform 0.3s ease;
+}
+
+.card:hover .card-img-top {
+    transform: scale(1.05);
+}
+
+.play-overlay {
+    background: rgba(0,0,0,0.3);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.card:hover .play-overlay {
+    opacity: 1;
+}
+
+.duration-badge {
+    font-size: 0.7rem;
+}
+</style>
+
 {% endblock %}

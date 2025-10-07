@@ -14,12 +14,8 @@ class Config:
     ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
     ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
     
-    # Google Drive configuration
-    GOOGLE_DRIVE_CREDENTIALS_JSON = os.getenv("GOOGLE_DRIVE_CREDENTIALS_JSON")
-    GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
-
-    # Storage backend selection: 'local' or 'drive'
-    STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "local").lower()
+    # Storage backend: local only
+    STORAGE_BACKEND = "local"
 
     # Payments configuration
     PAYMENTS_PROVIDER = os.getenv("PAYMENTS_PROVIDER", "dummy")  # 'dummy' or 'stripe'

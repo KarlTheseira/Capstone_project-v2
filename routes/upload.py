@@ -1,11 +1,10 @@
 """
 Enhanced file upload routes for FlashStudio
-Integrates with Google Drive service for robust file management
+Local storage implementation for file management
 """
 import os
 import logging
 from flask import Blueprint, request, jsonify, abort, current_app
-from utils.google_drive import drive_storage_service as drive_blob_service
 from utils.local_storage import local_storage_service
 
 logger = logging.getLogger(__name__)
@@ -13,14 +12,12 @@ logger = logging.getLogger(__name__)
 upload_bp = Blueprint("upload_bp", __name__, url_prefix='/api')
 
 def get_storage():
-    backend = current_app.config.get('STORAGE_BACKEND', 'local')
-    if backend == 'drive':
-        return drive_blob_service
+    """Return local storage service"""
     return local_storage_service
 
 @upload_bp.route("/upload", methods=["POST"])
 def upload_file():
-    """Upload a file to Google Drive Storage"""
+    """Upload a file to local storage"""
     try:
         # Check if file is in request
         if "file" not in request.files:

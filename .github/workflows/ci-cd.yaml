@@ -111,18 +111,3 @@ jobs:
         kubectl -n ${{ secrets.NAMESPACE }} set image deployment/flashstudio-monolith \
           web=${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
         kubectl -n ${{ secrets.NAMESPACE }} rollout status deployment/flashstudio-monolith
-    - name: Diagnostics on failure
-      if: failure()
-      run: |
-        echo "Deployment failed – collecting diagnostics" >&2
-        echo "Pods:" >&2
-        kubectl -n ${{ secrets.NAMESPACE }} get pods -l app=flashstudio-monolith -o wide || true
-        echo "Describe deployment:" >&2
-        kubectl -n ${{ secrets.NAMESPACE }} describe deploy/flashstudio-monolith || true
-        echo "Recent events:" >&2
-        kubectl -n ${{ secrets.NAMESPACE }} get events --sort-by=.metadata.creationTimestamp | tail -n 50 || true
-        POD=$(kubectl -n ${{ secrets.NAMESPACE }} get pods -l app=flashstudio-monolith --no-headers | head -n1 | awk '{print $1}')
-        if [ -n "$POD" ]; then
-          echo "Logs from $POD:" >&2
-          kubectl -n ${{ secrets.NAMESPACE }} logs $POD --tail=200 || true
-        fi

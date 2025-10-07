@@ -1,175 +1,202 @@
-from flask import (
-	Blueprint, render_template, redirect, url_for, flash, abort,
-	request, session, current_app
-)
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from models import Product, db
-from werkzeug.utils import secure_filename
-import os
+from utils.media import save_media
+from routes.admin import require_admin
 
-admin_videos_bp = Blueprint('admin_videos', __name__, url_prefix='/admin')
+admin_videos_bp = Blueprint('admin_videos', __name__, url_prefix='/admin/videos')
 
-def require_admin():
-	is_admin = (
-		session.get("admin") == True or
-		session.get("admin_logged_in") == True or
-		session.get("user_type") == "admin"
-	)
-	if not is_admin:
-		abort(403)
-
-@admin_videos_bp.route('/videos', methods=['GET'])
-def manage_videos():
-    """Local-only video admin page."""
+@admin_videos_bp.route('/')
+def videos_dashboard():
+    """Video management dashboard for featured work section"""
     require_admin()
-    featured = Product.query.filter(
-        Product.featured == True,
-        Product.video_key.isnot(None)
+    
+    # Get all video products (featured work)
+    video_products = Product.query.filter(
+        Product.video_key.isnot(None),
+        Product.video_key != ''
+    ).order_by(Product.featured.desc(), Product.created_at.desc()).all()
+    
+    # Get featured videos specifically for homepage
+    featured_videos = Product.query.filter_by(featured=True).filter(
+        Product.video_key.isnot(None),
+        Product.video_key != ''
     ).order_by(Product.created_at.desc()).all()
-    candidates = Product.query.filter(
-        Product.featured == False,
-        Product.video_key.isnot(None)
-    ).order_by(Product.created_at.desc()).all()
-    return render_template('admin_homepage_videos.html', featured=featured, candidates=candidates)
+    
+    return render_template('admin_homepage_videos.html', 
+                         video_products=video_products,
+                         featured_videos=featured_videos)
 
-@admin_videos_bp.route('/homepage-videos', methods=['GET'])
-def legacy_homepage_videos():
-    return redirect(url_for('admin_videos.manage_videos'))
-
-@admin_videos_bp.route('/videos/feature/<int:product_id>', methods=['POST'])
-def feature_video(product_id):
-	require_admin()
-	product = Product.query.get_or_404(product_id)
-	product.featured = True
-	db.session.commit()
-	flash(f'"{product.title}" featured.', 'success')
-	return redirect(url_for('admin_videos.manage_videos'))
-
-@admin_videos_bp.route('/videos/unfeature/<int:product_id>', methods=['POST'])
-def unfeature_video(product_id):
-	require_admin()
-	product = Product.query.get_or_404(product_id)
-	product.featured = False
-	db.session.commit()
-	flash(f'"{product.title}" unfeatured.', 'info')
-	return redirect(url_for('admin_videos.manage_videos'))
-
-@admin_videos_bp.route('/videos/new', methods=['GET', 'POST'])
-def new_video():
-    """Create a new local video product."""
+@admin_videos_bp.route('/add', methods=['GET', 'POST'])
+def add_video():
+    """Add a new video to the featured work section"""
     require_admin()
+    
     if request.method == 'POST':
-        title = request.form.get('title', '').strip()
-        description = request.form.get('description', '').strip()
-        category = request.form.get('category', '').strip() or None
-        price_cents = request.form.get('price_cents', type=int) or 0
-        video_file = request.files.get('video_file')
-        thumb_file = request.files.get('thumbnail')
-
-        errors = []
-        if not title:
-            errors.append('Title is required.')
-        if not video_file or video_file.filename == '':
-            errors.append('Video file is required.')
-        if errors:
-            for e in errors:
-                flash(e, 'error')
-            return render_template('admin_new_video.html')
-
-        storage_backend = current_app.extensions.get('active_storage')
-        saved_video_key = None
         try:
-            ok, result = storage_backend.upload_file(file=video_file, folder='') if hasattr(storage_backend, 'upload_file') else (False, {'error': 'Storage backend not available'})
-            if not ok:
-                flash(f"Upload failed: {result.get('error')}", 'error')
-                return render_template('admin_new_video.html')
-            saved_video_key = result.get('stored_name') or result.get('filename') or result.get('blob_name') or result.get('id')
-        except Exception as e:
-            flash(f'Unexpected upload error: {e}', 'error')
-            return render_template('admin_new_video.html')
-
-        thumb_key = None
-        if thumb_file and thumb_file.filename:
-            try:
-                uploads_dir = os.path.join(current_app.root_path, 'static', 'uploads')
-                os.makedirs(uploads_dir, exist_ok=True)
-                secure_name = secure_filename(thumb_file.filename)
-                thumb_file.save(os.path.join(uploads_dir, secure_name))
-                thumb_key = secure_name
-            except Exception as e:
-                flash(f'Thumbnail save failed: {e}', 'warning')
-
-        product = Product(
-            title=title,
-            description=description,
-            price_cents=price_cents,
-            media_key=thumb_key or saved_video_key,
-            video_key=saved_video_key,
-            video_thumbnail=thumb_key,
-            video_duration=None,
-            category=category,
-            stock=1,
-            video_hosting_type='local'
-        )
-        try:
+            # Create new product for video
+            product = Product()
+            
+            # Basic information
+            product.title = request.form.get('title', '').strip()
+            product.description = request.form.get('description', '').strip()
+            product.client_name = request.form.get('client_name', '').strip()
+            product.client_testimonial = request.form.get('client_testimonial', '').strip()
+            
+            # Video duration (convert minutes:seconds to total seconds)
+            duration_str = request.form.get('duration', '')
+            if duration_str and ':' in duration_str:
+                try:
+                    minutes, seconds = map(int, duration_str.split(':'))
+                    product.video_duration = minutes * 60 + seconds
+                except ValueError:
+                    pass
+            
+            # Set as featured for homepage
+            product.featured = request.form.get('featured') == 'on'
+            
+            # Set category as video/portfolio
+            product.category = 'Video Portfolio'
+            
+            # Handle video file upload
+            video_file = request.files.get('video_file')
+            if video_file and video_file.filename:
+                video_key, video_url = save_media(video_file)
+                product.video_key = video_key
+                product.media_key = video_key  # Also set as main media
+                product.mime_type = video_file.mimetype
+            else:
+                flash('Video file is required', 'error')
+                return redirect(url_for('admin_videos.videos_dashboard'))
+            
+            # Handle thumbnail upload
+            thumbnail_file = request.files.get('thumbnail_file')
+            if thumbnail_file and thumbnail_file.filename:
+                thumbnail_key, thumbnail_url = save_media(thumbnail_file)
+                product.video_thumbnail = thumbnail_key
+                product.thumbnail_key = thumbnail_key
+            
+            # Set default price and stock (not really used for portfolio videos)
+            product.price_cents = 0
+            product.stock = 1
+            
             db.session.add(product)
             db.session.commit()
-            if request.form.get('feature') == 'on':
-                product.featured = True
-                db.session.commit()
-            flash('Video created successfully.', 'success')
-            return redirect(url_for('admin_videos.manage_videos'))
+            
+            flash(f'Video "{product.title}" added successfully!', 'success')
+            return redirect(url_for('admin_videos.videos_dashboard'))
+            
         except Exception as e:
             db.session.rollback()
-            flash(f'Failed to create product: {e}', 'error')
-            return render_template('admin_new_video.html')
+            flash(f'Error adding video: {str(e)}', 'error')
+            return redirect(url_for('admin_videos.videos_dashboard'))
+    
+    return render_template('admin_homepage_videos.html')
 
-    return render_template('admin_new_video.html')
-
-@admin_videos_bp.route('/videos/update/<int:product_id>', methods=['POST'])
-def update_homepage_video(product_id):
-    """Update metadata for a local featured video."""
+@admin_videos_bp.route('/edit/<int:video_id>', methods=['GET', 'POST'])
+def edit_video(video_id):
+    """Edit an existing video"""
     require_admin()
-    product = Product.query.get_or_404(product_id)
-    title = request.form.get('title', '').strip()
-    description = request.form.get('description', '').strip()
-    category = request.form.get('category', '').strip()
-    client_name = request.form.get('client_name', '').strip()
-    client_testimonial = request.form.get('client_testimonial', '').strip()
-    price_cents = request.form.get('price_cents', type=int)
-
-    if not title:
-        flash('Title is required.', 'error')
-        return redirect(url_for('admin_videos.manage_videos'))
-
-    product.title = title
-    if description:
-        product.description = description
-    if category:
-        product.category = category
-    if client_name:
-        product.client_name = client_name
-    if client_testimonial:
-        product.client_testimonial = client_testimonial
-    if price_cents is not None:
-        product.price_cents = price_cents
-
-    thumb_file = request.files.get('thumbnail')
-    if thumb_file and thumb_file.filename:
+    
+    product = Product.query.get_or_404(video_id)
+    
+    if request.method == 'POST':
         try:
-            uploads_dir = os.path.join(current_app.root_path, 'static', 'uploads')
-            os.makedirs(uploads_dir, exist_ok=True)
-            secure_name = secure_filename(thumb_file.filename)
-            thumb_file.save(os.path.join(uploads_dir, secure_name))
-            product.video_thumbnail = secure_name
-            if not product.media_key:
-                product.media_key = secure_name
+            # Update basic information
+            product.title = request.form.get('title', '').strip()
+            product.description = request.form.get('description', '').strip()
+            product.client_name = request.form.get('client_name', '').strip()
+            product.client_testimonial = request.form.get('client_testimonial', '').strip()
+            
+            # Update video duration
+            duration_str = request.form.get('duration', '')
+            if duration_str and ':' in duration_str:
+                try:
+                    minutes, seconds = map(int, duration_str.split(':'))
+                    product.video_duration = minutes * 60 + seconds
+                except ValueError:
+                    pass
+            
+            # Update featured status
+            product.featured = request.form.get('featured') == 'on'
+            
+            # Handle video file replacement
+            video_file = request.files.get('video_file')
+            if video_file and video_file.filename:
+                video_key, video_url = save_media(video_file)
+                product.video_key = video_key
+                product.media_key = video_key
+                product.mime_type = video_file.mimetype
+            
+            # Handle thumbnail replacement
+            thumbnail_file = request.files.get('thumbnail_file')
+            if thumbnail_file and thumbnail_file.filename:
+                thumbnail_key, thumbnail_url = save_media(thumbnail_file)
+                product.video_thumbnail = thumbnail_key
+                product.thumbnail_key = thumbnail_key
+            
+            db.session.commit()
+            
+            flash(f'Video "{product.title}" updated successfully!', 'success')
+            return redirect(url_for('admin_videos.videos_dashboard'))
+            
         except Exception as e:
-            flash(f'Thumbnail update failed: {e}', 'warning')
+            db.session.rollback()
+            flash(f'Error updating video: {str(e)}', 'error')
+    
+    return redirect(url_for('admin_videos.videos_dashboard'))
 
+@admin_videos_bp.route('/delete/<int:video_id>', methods=['POST'])
+def delete_video(video_id):
+    """Delete a video from featured work"""
+    require_admin()
+    
     try:
+        product = Product.query.get_or_404(video_id)
+        video_title = product.title
+        
+        db.session.delete(product)
         db.session.commit()
-        flash('Video updated.', 'success')
+        
+        flash(f'Video "{video_title}" deleted successfully!', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Update failed: {e}', 'error')
-    return redirect(url_for('admin_videos.manage_videos'))
+        flash(f'Error deleting video: {str(e)}', 'error')
+    
+    return redirect(url_for('admin_videos.videos_dashboard'))
+
+@admin_videos_bp.route('/toggle-featured/<int:video_id>', methods=['POST'])
+def toggle_featured(video_id):
+    """Toggle featured status of a video"""
+    require_admin()
+    
+    try:
+        product = Product.query.get_or_404(video_id)
+        product.featured = not product.featured
+        db.session.commit()
+        
+        status = 'featured' if product.featured else 'unfeatured'
+        flash(f'Video "{product.title}" {status} successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating video: {str(e)}', 'error')
+    
+    return redirect(url_for('admin_videos.videos_dashboard'))
+
+@admin_videos_bp.route('/reorder', methods=['POST'])
+def reorder_videos():
+    """Reorder featured videos for homepage display"""
+    require_admin()
+    
+    try:
+        video_ids = request.json.get('video_ids', [])
+        
+        for index, video_id in enumerate(video_ids):
+            product = Product.query.get(video_id)
+            if product:
+                # Use a custom order field or update timestamp
+                # For now, we'll use the ID ordering
+                pass
+        
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 400

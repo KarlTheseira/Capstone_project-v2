@@ -6,20 +6,19 @@ from flask import Flask, session, render_template, send_from_directory
 from flask_migrate import Migrate
 from models import db, Product, User, Order, OrderItem
 from config import Config
-from utils.google_drive import drive_service
 from utils.local_storage import local_storage_service
 import logging
 from datetime import timedelta
 import os
+import mimetypes
 
 # Import blueprints
 from routes.public import public_bp
 from routes.admin import admin_bp
+from routes.admin_videos import admin_videos_bp
 from routes.auth import auth_bp
 from routes.upload import upload_bp
 from routes.payment import payment_bp
-from routes.admin_videos import admin_videos_bp
-from routes.video import video_bp, init_videos
 
 
 app = Flask(__name__)
@@ -35,98 +34,34 @@ app.config['SESSION_COOKIE_NAME'] = 'flash_studio_session'
 db.init_app(app)
 migrate = Migrate(app, db)
 
-## --- Storage Backend Selection (local or drive) ---
-backend = app.config.get('STORAGE_BACKEND', 'local')
-if backend == 'drive':
-    folder_id_env = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
-    if folder_id_env:
-        app.config['GOOGLE_DRIVE_FOLDER_ID'] = folder_id_env
-    else:
-        logging.warning("GOOGLE_DRIVE_FOLDER_ID not set in environment at app startup (drive backend selected)")
-    logging.info("[storage] Initializing Google Drive backend (folder id=%s)", app.config.get('GOOGLE_DRIVE_FOLDER_ID'))
-    drive_service.init_app(app)
-    app.extensions['active_storage'] = drive_service
-else:
-    logging.info("[storage] Using local storage backend")
-    app.extensions['active_storage'] = local_storage_service
-app.config['ACTIVE_STORAGE_BACKEND'] = backend
+## --- Storage Backend (Local Only) ---
+logging.info("[storage] Using local storage backend")
+app.extensions['active_storage'] = local_storage_service
+app.config['ACTIVE_STORAGE_BACKEND'] = 'local'
 
 # Register blueprints
 app.register_blueprint(public_bp)
 app.register_blueprint(admin_bp)
+app.register_blueprint(admin_videos_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(upload_bp)
-# Register Google Drive routes only if drive backend active
-if backend == 'drive':
-    from routes.gdrive import gdrive_bp
-    app.register_blueprint(gdrive_bp)
 app.register_blueprint(payment_bp)
-app.register_blueprint(admin_videos_bp)
-app.register_blueprint(video_bp)
 
-# Initialize sample / generated video assets unless disabled
-if os.getenv('SKIP_VIDEO_INIT', '').lower() not in ('1','true','yes'):  # opt-out for production
-    try:
-        with app.app_context():
-            init_videos()
-    except Exception as e:
-        logging.warning("[video] Initialization skipped or failed: %s", e)
-else:
-    logging.info("[video] SKIP_VIDEO_INIT set – skipping generated video creation")
 
-# -------------------------------------------------------------
-# Diagnostic Google Drive routes (can be removed in production)
-# -------------------------------------------------------------
-from flask import jsonify
-from werkzeug.datastructures import FileStorage
-import io
-
-@app.route('/drive/status', methods=['GET'])
-def drive_status():
-    """Return current Google Drive integration status and sample listing."""
-    try:
-        configured = drive_service.is_configured()
-        folder_id = getattr(drive_service, 'folder_id', None)
-        sample = None
-        error = None
-        if configured:
-            ok, result = drive_service.list_files(limit=5)
-            if ok:
-                sample = result.get('files', [])
-            else:
-                error = result.get('error')
-        return jsonify({
-            'configured': configured,
-            'folder_id': folder_id,
-            'sample_files': sample,
-            'error': error
-        }), 200 if configured else 500
-    except Exception as e:
-        logging.exception("Drive status check failed")
-        return jsonify({'configured': False, 'error': str(e)}), 500
-
-@app.route('/drive/upload-test', methods=['POST'])
-def drive_upload_test():
-    """Upload a small in-memory text file to Drive for validation."""
-    if not drive_service.is_configured():
-        return jsonify({'error': 'Drive not configured'}), 500
-    try:
-        content = f"FlashStudio diagnostic upload test at {__import__('datetime').datetime.utcnow().isoformat()}".encode('utf-8')
-        stream = io.BytesIO(content)
-        file_obj = FileStorage(stream=stream, filename='diagnostic_test.txt', content_type='text/plain')
-        ok, result = drive_service.upload_file(file_obj)
-        if ok:
-            return jsonify({'success': True, 'file': result}), 200
-        return jsonify({'success': False, 'error': result.get('error')}), 500
-    except Exception as e:
-        logging.exception("Diagnostic upload failed")
-        return jsonify({'success': False, 'error': str(e)}), 500
 
 # Media serving route
 @app.route('/media/<path:filename>')
 def media(filename):
-    """Serve media files from the uploads directory"""
-    return send_from_directory('static/uploads', filename)
+    """Serve media files from the uploads directory with proper MIME types"""
+    # Ensure proper MIME types for video files
+    mimetype, _ = mimetypes.guess_type(filename)
+    response = send_from_directory('static/uploads', filename)
+    
+    if mimetype and mimetype.startswith('video'):
+        response.headers['Accept-Ranges'] = 'bytes'
+        response.headers['Content-Type'] = mimetype
+    
+    return response
 
 # Context processor for templates
 @app.context_processor
@@ -154,25 +89,11 @@ def internal_error(error):
 def init_db():
     """Initialize database with sample data if empty"""
     with app.app_context():
-        # Create tables if absent
+        # Only create tables if they don't exist
         db.create_all()
-
-        # Attempt column patch for legacy SQLite DBs missing newer fields
-        _patch_sqlite_product_columns()
-
-        # Check if we need to add some initial data (guard with retry if columns added)
-        need_seed = False
-        try:
-            need_seed = (Product.query.count() == 0)
-        except Exception as e:
-            app.logger.warning("[init_db] First count failed (%s); attempting schema patch then retry", e)
-            _patch_sqlite_product_columns(force=True)
-            try:
-                need_seed = (Product.query.count() == 0)
-            except Exception as e2:
-                app.logger.error("[init_db] Second count failed after patch: %s", e2)
-                need_seed = False
-        if need_seed:
+        
+        # Check if we need to add some initial data
+        if Product.query.count() == 0:
             # Add some sample products with video content for showreel
             sample_products = [
                 Product(
@@ -222,50 +143,6 @@ def init_db():
                 db.session.add(product)
             
             db.session.commit()
-
-def _patch_sqlite_product_columns(force: bool = False):
-    """Add missing Product columns for legacy local SQLite DBs.
-
-    Only applies when using SQLite and columns (google_drive_video_id, google_drive_video_url,
-    video_hosting_type, project_date, client_name, client_testimonial, available_sizes, available_frames)
-    are missing. Safe no-op if they already exist.
-    """
-    engine = db.get_engine()
-    if 'sqlite' not in str(engine.url):
-        return
-    from sqlalchemy import text
-    # Introspect existing columns
-    existing_cols = set()
-    try:
-        result = engine.execute(text("PRAGMA table_info(product)"))
-        for row in result:
-            existing_cols.add(row[1])  # column name
-    except Exception as e:
-        app.logger.warning("[schema] Could not inspect product table: %s", e)
-        return
-
-    alterations = []
-    def add(col, ddl):
-        if col not in existing_cols:
-            alterations.append((col, ddl))
-
-    add('google_drive_video_id', "ALTER TABLE product ADD COLUMN google_drive_video_id VARCHAR(512)")
-    add('google_drive_video_url', "ALTER TABLE product ADD COLUMN google_drive_video_url VARCHAR(1024)")
-    add('video_hosting_type', "ALTER TABLE product ADD COLUMN video_hosting_type VARCHAR(32) DEFAULT 'local'")
-    add('project_date', "ALTER TABLE product ADD COLUMN project_date DATE")
-    add('client_name', "ALTER TABLE product ADD COLUMN client_name VARCHAR(255)")
-    add('client_testimonial', "ALTER TABLE product ADD COLUMN client_testimonial TEXT")
-    add('available_sizes', "ALTER TABLE product ADD COLUMN available_sizes TEXT")
-    add('available_frames', "ALTER TABLE product ADD COLUMN available_frames TEXT")
-
-    if not alterations and not force:
-        return
-    for col, stmt in alterations:
-        try:
-            engine.execute(text(stmt))
-            app.logger.info("[schema] Added missing column: %s", col)
-        except Exception as e:
-            app.logger.warning("[schema] Failed to add column %s: %s", col, e)
 
 if __name__ == "__main__":
     # Initialize database with sample data if needed

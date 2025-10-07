@@ -17,11 +17,6 @@ class Product(db.Model):
     video_key = db.Column(db.String(512))  # For video content (local or filename)
     video_thumbnail = db.Column(db.String(512))  # Video preview image
     video_duration = db.Column(db.Integer)  # Duration in seconds
-    
-    # Google Drive integration fields
-    google_drive_video_id = db.Column(db.String(512))  # Google Drive file ID
-    google_drive_video_url = db.Column(db.String(1024))  # Direct streaming URL
-    video_hosting_type = db.Column(db.String(32), default='local')  # 'local', 'google_drive', 'youtube', etc.
     project_date = db.Column(db.Date)  # When the project was completed
     client_name = db.Column(db.String(255))  # For portfolio pieces
     client_testimonial = db.Column(db.Text)  # Client feedback
@@ -46,18 +41,15 @@ class Product(db.Model):
     @property
     def is_video(self):
         """Check if this product has video content"""
-        return bool(self.video_key or self.google_drive_video_id)
+        return bool(self.video_key)
     
     @property
     def video_stream_url(self):
-        """Get the appropriate video streaming URL based on hosting type"""
-        if self.video_hosting_type == 'google_drive' and self.google_drive_video_id:
-            # Google Drive direct streaming URL
-            return f"https://drive.google.com/uc?export=download&id={self.google_drive_video_id}"
-        elif self.video_key:
+        """Get the local video streaming URL"""
+        if self.video_key:
             # Local video file
             from flask import url_for
-            return url_for('video.play', video_id=self.id)
+            return url_for('public.video', video_id=self.id)
         return None
     
     @property

@@ -24,34 +24,43 @@
 <section id="showreel" class="py-5">
     <div class="container">
         <h2 class="display-4 text-center mb-5">Featured Work</h2>
+        
         <div class="row g-4">
             {% for p in featured_products %}
                 <div class="col-lg-4">
                     <div class="card h-100 border-0 shadow-sm">
                         {% if p.video_key %}
-                            <div class="video-thumbnail-wrapper">
-                                <a href="{{ url_for('public.video', product_id=p.id) }}" class="text-decoration-none video-link" data-video-id="{{ p.id }}">
-                                    <div class="video-thumbnail position-relative">
-                                        <img src="{{ url_for('static', filename='uploads/' ~ p.video_thumbnail) if p.video_thumbnail else url_for('static', filename='images/placeholder.jpg') }}" 
-                                             class="card-img-top" alt="{{ p.title }}" loading="lazy">
-                                        <div class="play-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center">
-                                            <div class="play-button">
-                                                <i class="bi bi-play-circle-fill text-white"></i>
-                                                <span class="visually-hidden">Play {{ p.title }}</span>
-                                            </div>
-                                        </div>
-                                        {% if p.duration_display %}
-                                        <span class="duration-badge position-absolute bottom-0 end-0 m-2 px-2 py-1 bg-dark text-white rounded">
-                                            {{ p.duration_display }}
-                                        </span>
-                                        {% endif %}
-                                        <div class="video-loading-indicator position-absolute top-50 start-50 translate-middle" style="display: none;">
-                                            <div class="spinner-border text-light" role="status">
-                                                <span class="visually-hidden">Loading...</span>
-                                            </div>
+                            <div class="video-card position-relative">
+                                <!-- Video Thumbnail with Play Button -->
+                                <div class="video-thumbnail-container" onclick="showVideoPlayer(this)" style="cursor: pointer;">
+                                    <img src="{{ url_for('static', filename='uploads/' ~ p.video_thumbnail) if p.video_thumbnail else url_for('static', filename='images/placeholder.jpg') }}" 
+                                         class="card-img-top" alt="{{ p.title }}" style="height: 250px; object-fit: cover;">
+                                    <div class="play-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center">
+                                        <div class="play-button text-white">
+                                            <i class="bi bi-play-circle-fill display-4"></i>
                                         </div>
                                     </div>
-                                </a>
+                                    <span class="duration-badge position-absolute bottom-0 end-0 m-2 px-2 py-1 bg-dark text-white rounded">
+                                        {{ p.duration_display }}
+                                    </span>
+                                </div>
+                                
+                                <!-- Video Player (hidden by default) -->
+                                <div class="video-player-container d-none">
+                                    <video class="card-img-top" controls autoplay style="height: 250px; object-fit: cover;"
+                                           poster="{{ url_for('static', filename='uploads/' ~ p.video_thumbnail) if p.video_thumbnail else url_for('static', filename='images/placeholder.jpg') }}">
+                                        <source src="{{ url_for('static', filename='uploads/' ~ p.video_key) }}" type="{{ p.mime_type or 'video/mp4' }}">
+                                        Your browser does not support the video tag.
+                                    </video>
+                                    <div class="video-controls mt-2">
+                                        <button class="btn btn-sm btn-secondary me-2" onclick="hideVideoPlayer(this)">
+                                            <i class="bi bi-arrow-left"></i> Back to Thumbnail
+                                        </button>
+                                        <a href="{{ url_for('public.video', product_id=p.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-fullscreen"></i> Full Screen
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                         {% endif %}
                         <div class="card-body">
@@ -141,48 +150,34 @@
 .video-thumbnail {
     aspect-ratio: 16/9;
     overflow: hidden;
-    border-radius: 8px;
 }
 .video-thumbnail img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.3s ease;
 }
 .play-overlay {
     background: rgba(0,0,0,0.3);
     opacity: 0;
     transition: all 0.3s ease;
-    border-radius: 8px;
 }
-.video-thumbnail-wrapper {
+.video-thumbnail-container {
     transition: transform 0.3s ease;
 }
-.video-thumbnail-wrapper:hover {
-    transform: translateY(-2px);
+.video-thumbnail-container:hover {
+    transform: scale(1.02);
 }
-.video-thumbnail-wrapper:hover .video-thumbnail img {
-    transform: scale(1.05);
-}
-.video-thumbnail-wrapper:hover .play-overlay {
+.video-thumbnail-container:hover .play-overlay {
     opacity: 1;
-    background: rgba(0,0,0,0.6);
-}
-.play-button {
-    position: relative;
+    background: rgba(0,0,0,0.5);
 }
 .bi-play-circle-fill {
-    font-size: 4rem;
+    font-size: 3rem;
     filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
-    transition: all 0.3s ease;
+    transition: transform 0.3s ease;
 }
-.video-thumbnail-wrapper:hover .bi-play-circle-fill {
+.video-thumbnail-container:hover .bi-play-circle-fill {
     transform: scale(1.2);
-    color: var(--bs-primary) !important;
-}
-/* Video loading indicator on homepage */
-.video-loading-indicator {
-    z-index: 10;
 }
 .duration-badge {
     font-size: 0.8rem;
@@ -190,5 +185,67 @@
     background: rgba(0,0,0,0.7) !important;
     z-index: 2;
 }
+.video-player.d-none {
+    display: none !important;
+}
 </style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showVideoPlayer(thumbnailContainer) {
+    try {
+        const videoCard = thumbnailContainer.closest('.video-card');
+        const thumbnail = videoCard.querySelector('.video-thumbnail-container');
+        const videoPlayerContainer = videoCard.querySelector('.video-player-container');
+        const video = videoPlayerContainer.querySelector('video');
+        
+        // Hide thumbnail, show video player
+        thumbnail.classList.add('d-none');
+        videoPlayerContainer.classList.remove('d-none');
+        
+        // Try to play the video
+        if (video) {
+            video.play().catch(error => {
+                // Silent fail for autoplay restrictions
+            });
+        }
+    } catch (error) {
+        console.error('Error in showVideoPlayer:', error);
+    }
+}
+
+function hideVideoPlayer(backButton) {
+    try {
+        const videoCard = backButton.closest('.video-card');
+        const thumbnail = videoCard.querySelector('.video-thumbnail-container');
+        const videoPlayerContainer = videoCard.querySelector('.video-player-container');
+        const video = videoPlayerContainer.querySelector('video');
+        
+        // Pause video and reset
+        if (video) {
+            video.pause();
+            video.currentTime = 0;
+        }
+        
+        // Show thumbnail, hide video player
+        thumbnail.classList.remove('d-none');
+        videoPlayerContainer.classList.add('d-none');
+    } catch (error) {
+        console.error('Error in hideVideoPlayer:', error);
+    }
+}
+
+// Initialize video handlers
+document.addEventListener('DOMContentLoaded', function() {
+    const thumbnailContainers = document.querySelectorAll('.video-thumbnail-container');
+    
+    // Add fallback event listeners
+    thumbnailContainers.forEach((container) => {
+        container.addEventListener('click', function(e) {
+            showVideoPlayer(this);
+        });
+    });
+});
+</script>
 {% endblock %}

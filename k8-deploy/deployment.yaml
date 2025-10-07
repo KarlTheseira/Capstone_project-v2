@@ -32,9 +32,6 @@ spec:
             # Storage backend configuration (local or drive)
             - name: STORAGE_BACKEND
               value: "local"
-            # Skip heavy OpenCV video generation on cluster startup
-            - name: SKIP_VIDEO_INIT
-              value: "true"
             # App configuration
             - name: FLASK_ENV
               value: "production"

@@ -497,13 +497,7 @@ def video(product_id):
     product = Product.query.get_or_404(product_id)
     if not product.video_key:
         abort(404)
-    
-    # Check if simple mode is requested
-    simple_mode = request.args.get('simple', 'false').lower() == 'true'
-    if simple_mode:
-        return render_template("video_simple.html", product=product)
-    else:
-        return render_template("video_player.html", product=product)
+    return render_template("video_player.html", product=product)
 
 # -----------------------------
 # Product detail (GET shows page, POST adds to cart)
@@ -766,8 +760,7 @@ def checkout():
                 email=email,
                 amount_cents=total,
                 currency="sgd",
-                status="created",  # Will be updated to payment_pending when payment intent is created
-                payment_method="stripe"
+                status="pending"
             )
             
             # Link to user if logged in
@@ -793,9 +786,10 @@ def checkout():
             
             db.session.commit()
             
-            # Redirect to payment page instead of clearing cart immediately
-            # Cart will be cleared after successful payment
-            return redirect(url_for("public.payment_page", order_id=order.id))
+            # Clear cart and redirect to confirmation
+            session["cart"] = []
+            session.modified = True
+            return redirect(url_for("public.confirmation", order_no=f"ORD{order.id:05d}"))
             
         except Exception as e:
             db.session.rollback()
@@ -817,26 +811,6 @@ def checkout():
             }
     
     return render_template("checkout.html", total=total, items=items, **user_data)
-
-@public_bp.route("/payment/<int:order_id>")
-def payment_page(order_id):
-    """Payment page with Stripe Elements"""
-    order = db.session.get(Order, order_id)
-    if not order:
-        flash("Order not found", "error")
-        return redirect(url_for("public.shop"))
-    
-    # Check if order belongs to current user (if logged in)
-    if session.get("user_id") and order.user_id != session["user_id"]:
-        flash("Unauthorized access", "error")
-        return redirect(url_for("public.shop"))
-    
-    # Check if order is already paid
-    if order.is_paid:
-        flash("Order already paid", "info")
-        return redirect(url_for("payment.success", order_id=order.id))
-    
-    return render_template("payment.html", order=order)
 
 @public_bp.route("/confirmation")
 def confirmation():

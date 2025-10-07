@@ -9,26 +9,16 @@
             <video class="video-player" id="videoPlayer" controls preload="metadata" playsinline crossorigin="anonymous"
                    poster="{{ url_for('static', filename='uploads/' ~ product.video_thumbnail) if product.video_thumbnail else '' }}">
                 
-                <!-- Google Drive video source (primary if available) -->
-                {% if product.video_hosting_type == 'google_drive' and product.google_drive_video_url %}
-                    <source src="{{ product.google_drive_video_url }}" type="video/mp4">
-                {% endif %}
-                
-                <!-- Local video sources (fallback) -->
+                <!-- Local video source -->
                 {% if product.video_key %}
-                    <source src="{{ url_for('video.play', video_id=product.id) }}" type="video/mp4">
-                    <source src="{{ url_for('static', filename='uploads/' ~ product.video_key) }}" type="video/mp4">
+                    <source src="{{ url_for('static', filename='uploads/' ~ product.video_key) }}" type="{{ product.mime_type or 'video/mp4' }}">
                 {% endif %}
                 
                 <!-- Fallback message -->
                 <div class="video-fallback">
                     <p>Your browser doesn't support video playback.</p>
-                    {% if product.video_hosting_type == 'google_drive' and product.google_drive_video_url %}
-                        <a href="{{ product.google_drive_video_url }}" class="btn btn-primary" target="_blank">
-                            <i class="bi bi-download"></i> Download Video
-                        </a>
-                    {% elif product.video_key %}
-                        <a href="{{ url_for('video.play', video_id=product.id) }}" class="btn btn-primary" download>
+                    {% if product.video_key %}
+                        <a href="{{ url_for('static', filename='uploads/' ~ product.video_key) }}" class="btn btn-primary" download>
                             <i class="bi bi-download"></i> Download Video
                         </a>
                     {% endif %}
