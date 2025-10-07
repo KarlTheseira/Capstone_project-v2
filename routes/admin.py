@@ -1,11 +1,12 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, abort, jsonify, make_response
-from models import Product, Order, QuoteRequest, ServicePackage, Booking, Analytics, db, CORPORATE_CATEGORIES
+from models import Product, Order, QuoteRequest, ServicePackage, Booking, Analytics, Review, db, CORPORATE_CATEGORIES
 from utils.media import save_media
 from config import Config
 import json
 import csv
 from datetime import datetime, date, timedelta
 from io import StringIO
+from sqlalchemy import func
 
 # Import size and frame options for product customization
 SIZE_OPTIONS = {
@@ -484,3 +485,88 @@ def customization_options():
     return render_template("admin_customization_options.html", 
                          size_options=SIZE_OPTIONS,
                          frame_options=FRAME_OPTIONS)
+
+# -----------------------------
+# Review Management
+# -----------------------------
+
+@admin_bp.route("/reviews")
+def reviews():
+    """Admin review management"""
+    require_admin()
+    
+    # Get filter parameters
+    status_filter = request.args.get('status', 'all')
+    product_filter = request.args.get('product', type=int)
+    
+    # Build query
+    reviews_query = Review.query
+    
+    if status_filter == 'pending':
+        reviews_query = reviews_query.filter_by(approved=False)
+    elif status_filter == 'approved':
+        reviews_query = reviews_query.filter_by(approved=True)
+    
+    if product_filter:
+        reviews_query = reviews_query.filter_by(product_id=product_filter)
+    
+    reviews = reviews_query.order_by(Review.created_at.desc()).all()
+    
+    # Get products for filter dropdown
+    products = Product.query.order_by(Product.title).all()
+    
+    # Get review statistics
+    total_reviews = Review.query.count()
+    pending_reviews = Review.query.filter_by(approved=False).count()
+    approved_reviews = Review.query.filter_by(approved=True).count()
+    
+    stats = {
+        'total': total_reviews,
+        'pending': pending_reviews,
+        'approved': approved_reviews,
+        'average_rating': db.session.query(func.avg(Review.rating)).scalar() or 0
+    }
+    
+    return render_template("admin_reviews.html", 
+                         reviews=reviews,
+                         products=products,
+                         stats=stats,
+                         current_filters={'status': status_filter, 'product': product_filter})
+
+@admin_bp.route("/reviews/<int:review_id>/approve", methods=["POST"])
+def approve_review(review_id):
+    """Approve a review"""
+    require_admin()
+    
+    review = Review.query.get_or_404(review_id)
+    review.approved = True
+    db.session.commit()
+    
+    flash(f"Review by {review.display_name} has been approved.", "success")
+    return redirect(url_for("admin.reviews"))
+
+@admin_bp.route("/reviews/<int:review_id>/reject", methods=["POST"])
+def reject_review(review_id):
+    """Reject/hide a review"""
+    require_admin()
+    
+    review = Review.query.get_or_404(review_id)
+    review.approved = False
+    db.session.commit()
+    
+    flash(f"Review by {review.display_name} has been hidden.", "warning")
+    return redirect(url_for("admin.reviews"))
+
+@admin_bp.route("/reviews/<int:review_id>/delete", methods=["POST"])
+def delete_review(review_id):
+    """Delete a review permanently"""
+    require_admin()
+    
+    review = Review.query.get_or_404(review_id)
+    reviewer_name = review.display_name
+    
+    db.session.delete(review)
+    db.session.commit()
+    
+    flash(f"Review by {reviewer_name} has been deleted permanently.", "danger")
+    return redirect(url_for("admin.reviews"))

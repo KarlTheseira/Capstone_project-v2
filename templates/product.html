@@ -97,7 +97,174 @@
       </div>
     </div>
   </div>
+
+  <!-- Reviews Section -->
+  <div class="row mt-5">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="row">
+            <!-- Review Summary -->
+            <div class="col-md-4 border-end">
+              <h4 class="mb-3">Customer Reviews</h4>
+              
+              {% if review_stats.count > 0 %}
+                <div class="text-center mb-3">
+                  <div class="display-4 fw-bold text-primary">{{ "%.1f"|format(review_stats.average_rating) }}</div>
+                  <div class="text-warning fs-4">
+                    {% for i in range(1, 6) %}
+                      {% if i <= review_stats.average_rating %}
+                        <i class="bi bi-star-fill"></i>
+                      {% elif i - 0.5 <= review_stats.average_rating %}
+                        <i class="bi bi-star-half"></i>
+                      {% else %}
+                        <i class="bi bi-star"></i>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                  <p class="text-muted">Based on {{ review_stats.count }} review{{ 's' if review_stats.count != 1 else '' }}</p>
+                </div>
+                
+                <!-- Rating Distribution -->
+                <div class="small">
+                  {% for rating in range(5, 0, -1) %}
+                    <div class="row align-items-center mb-1">
+                      <div class="col-2 text-end">{{ rating }}★</div>
+                      <div class="col-8">
+                        <div class="progress" style="height: 8px;">
+                          {% set percentage = (review_stats.rating_distribution[rating] / review_stats.count * 100) if review_stats.count > 0 else 0 %}
+                          <div class="progress-bar bg-warning" style="width: {{ percentage }}%"></div>
+                        </div>
+                      </div>
+                      <div class="col-2">{{ review_stats.rating_distribution[rating] }}</div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="text-center text-muted py-4">
+                  <i class="bi bi-chat-dots display-4 mb-3"></i>
+                  <p>No reviews yet</p>
+                  <p class="small">Be the first to review this product!</p>
+                </div>
+              {% endif %}
+            </div>
+            
+            <!-- Write Review Form -->
+            <div class="col-md-8">
+              <h5 class="mb-3">Write a Review</h5>
+              
+              <form action="{{ url_for('public.submit_review', product_id=product.id) }}" method="POST">
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">Your Name *</label>
+                    <input type="text" class="form-control" name="reviewer_name" required
+                           value="{% if current_user %}{{ current_user.email.split('@')[0]|title }}{% endif %}">
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">Email (optional)</label>
+                    <input type="email" class="form-control" name="reviewer_email" 
+                           value="{% if current_user %}{{ current_user.email }}{% endif %}">
+                  </div>
+                </div>
+                
+                <div class="mb-3">
+                  <label class="form-label">Rating *</label>
+                  <div class="star-rating" id="starRating">
+                    {% for i in range(1, 6) %}
+                      <i class="bi bi-star star" data-rating="{{ i }}"></i>
+                    {% endfor %}
+                  </div>
+                  <input type="hidden" name="rating" id="ratingInput" required>
+                </div>
+                
+                <div class="mb-3">
+                  <label class="form-label">Review Title (optional)</label>
+                  <input type="text" class="form-control" name="title" placeholder="e.g., Great quality!">
+                </div>
+                
+                <div class="mb-3">
+                  <label class="form-label">Your Review *</label>
+                  <textarea class="form-control" name="comment" rows="4" required
+                            placeholder="Share your experience with this product..."></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Submit Review</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Individual Reviews -->
+  {% if review_stats.count > 0 %}
+  <div class="row mt-4">
+    <div class="col-12">
+      <h5 class="mb-3">Customer Reviews</h5>
+      
+      {% for review in review_stats.reviews %}
+        <div class="card mb-3 border-0 shadow-sm">
+          <div class="card-body">
+            <div class="row">
+              <div class="col-auto">
+                <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                  {{ review.display_name[0].upper() }}
+                </div>
+              </div>
+              <div class="col">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <h6 class="mb-1">
+                      {{ review.display_name }}
+                      {% if review.verified_purchase %}
+                        <span class="badge bg-success ms-1">Verified Purchase</span>
+                      {% endif %}
+                    </h6>
+                    <div class="text-warning small mb-1">
+                      {% for i in range(1, 6) %}
+                        {% if i <= review.rating %}
+                          <i class="bi bi-star-fill"></i>
+                        {% else %}
+                          <i class="bi bi-star"></i>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                    {% if review.title %}
+                      <h6 class="fw-semibold mb-2">{{ review.title }}</h6>
+                    {% endif %}
+                  </div>
+                  <small class="text-muted">{{ review.created_at.strftime('%B %d, %Y') }}</small>
+                </div>
+                <p class="mb-0">{{ review.comment }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 </div>
+
+<style>
+.star-rating .star {
+  font-size: 1.5rem;
+  color: #ddd;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.star-rating .star:hover,
+.star-rating .star.active {
+  color: #ffc107;
+}
+
+.avatar {
+  font-weight: 600;
+  font-size: 1.2rem;
+}
+</style>
 
 <script>
   (function () {
@@ -192,6 +359,65 @@
     // Initial paint
     clampQty();
     recalc();
+  })();
+
+  // Star rating functionality
+  (function() {
+    const stars = document.querySelectorAll('.star-rating .star');
+    const ratingInput = document.getElementById('ratingInput');
+    
+    stars.forEach((star, index) => {
+      star.addEventListener('mouseenter', () => {
+        highlightStars(index + 1);
+      });
+      
+      star.addEventListener('click', () => {
+        const rating = index + 1;
+        ratingInput.value = rating;
+        setActiveStars(rating);
+      });
+    });
+    
+    // Reset to selected rating on mouse leave
+    document.getElementById('starRating').addEventListener('mouseleave', () => {
+      if (ratingInput.value) {
+        setActiveStars(parseInt(ratingInput.value));
+      } else {
+        clearStars();
+      }
+    });
+    
+    function highlightStars(rating) {
+      stars.forEach((star, index) => {
+        if (index < rating) {
+          star.classList.add('active');
+        } else {
+          star.classList.remove('active');
+        }
+      });
+    }
+    
+    function setActiveStars(rating) {
+      stars.forEach((star, index) => {
+        if (index < rating) {
+          star.classList.add('active');
+          star.classList.remove('bi-star');
+          star.classList.add('bi-star-fill');
+        } else {
+          star.classList.remove('active');
+          star.classList.remove('bi-star-fill');
+          star.classList.add('bi-star');
+        }
+      });
+    }
+    
+    function clearStars() {
+      stars.forEach(star => {
+        star.classList.remove('active');
+        star.classList.remove('bi-star-fill');
+        star.classList.add('bi-star');
+      });
+    }
   })();
 </script>
 {% endblock %}

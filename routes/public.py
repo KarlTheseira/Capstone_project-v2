@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, abort, jsonify
-from models import Product, User, Order, OrderItem, QuoteRequest, ServicePackage, Booking, Availability, db, CORPORATE_CATEGORIES
+from models import Product, User, Order, OrderItem, QuoteRequest, ServicePackage, Booking, Availability, Review, db, CORPORATE_CATEGORIES
 from datetime import datetime, date, timedelta, time
 import uuid
 import json
@@ -558,13 +558,90 @@ def product(product_id):
         flash("Added to cart.", "success")
         return redirect(url_for("public.cart"))
 
-    # GET: show page
+    # GET: show page with reviews
+    review_stats = Review.get_product_stats(product_id)
     return render_template(
         "product.html",
         product=p,
         size_options=SIZE_OPTIONS,    # dict for select
         frame_options=FRAME_OPTIONS,  # dict for select
+        review_stats=review_stats,
     )
+
+# -----------------------------
+# Review functionality
+# -----------------------------
+
+@public_bp.route("/product/<int:product_id>/review", methods=["POST"])
+def submit_review(product_id):
+    """Submit a product review"""
+    product = Product.query.get_or_404(product_id)
+    
+    # Get form data
+    rating = request.form.get("rating", type=int)
+    title = request.form.get("title", "").strip()
+    comment = request.form.get("comment", "").strip()
+    reviewer_name = request.form.get("reviewer_name", "").strip()
+    reviewer_email = request.form.get("reviewer_email", "").strip()
+    
+    # Validation
+    if not rating or rating < 1 or rating > 5:
+        flash("Please select a rating between 1 and 5 stars.", "error")
+        return redirect(url_for("public.product", product_id=product_id))
+    
+    if not comment:
+        flash("Please write a review comment.", "error")
+        return redirect(url_for("public.product", product_id=product_id))
+    
+    if not reviewer_name:
+        flash("Please enter your name.", "error")
+        return redirect(url_for("public.product", product_id=product_id))
+    
+    # Check if user is logged in
+    user_id = session.get("user_id")
+    
+    # Check for existing review from this user/email
+    existing_review = None
+    if user_id:
+        existing_review = Review.query.filter_by(product_id=product_id, user_id=user_id).first()
+    elif reviewer_email:
+        existing_review = Review.query.filter_by(product_id=product_id, reviewer_email=reviewer_email).first()
+    
+    if existing_review:
+        flash("You have already reviewed this product.", "warning")
+        return redirect(url_for("public.product", product_id=product_id))
+    
+    # Check if user has purchased this product (verified purchase)
+    verified_purchase = False
+    if user_id:
+        # Check if user has an order with this product
+        user_orders = Order.query.filter_by(user_id=user_id).all()
+        for order in user_orders:
+            for item in order.items:
+                if item.product_id == product_id:
+                    verified_purchase = True
+                    break
+            if verified_purchase:
+                break
+    
+    # Create the review
+    review = Review(
+        product_id=product_id,
+        user_id=user_id,
+        reviewer_name=reviewer_name,
+        reviewer_email=reviewer_email if reviewer_email else None,
+        rating=rating,
+        title=title if title else None,
+        comment=comment,
+        verified_purchase=verified_purchase,
+        approved=True  # Auto-approve for now
+    )
+    
+    db.session.add(review)
+    db.session.commit()
+    
+    flash("Thank you for your review! It has been posted.", "success")
+    return redirect(url_for("public.product", product_id=product_id))
 
 # -----------------------------
 # Cart pages & actions

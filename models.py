@@ -433,3 +433,64 @@ class Analytics:
         # Sort by timestamp and limit
         activities.sort(key=lambda x: x['timestamp'], reverse=True)
         return activities[:limit]
+
+
+class Review(db.Model):
+    """Customer product reviews"""
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Allow anonymous reviews
+    reviewer_name = db.Column(db.String(255), nullable=False)  # For anonymous users
+    reviewer_email = db.Column(db.String(255), nullable=True)  # Optional contact
+    rating = db.Column(db.Integer, nullable=False)  # 1-5 star rating
+    title = db.Column(db.String(255), nullable=True)  # Review title/headline
+    comment = db.Column(db.Text, nullable=False)  # Review text
+    verified_purchase = db.Column(db.Boolean, default=False)  # If user bought the item
+    approved = db.Column(db.Boolean, default=True)  # Admin approval (auto-approve for now)
+    helpful_count = db.Column(db.Integer, default=0)  # Number of helpful votes
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    product = db.relationship('Product', backref=db.backref('reviews', lazy=True, cascade='all, delete-orphan'))
+    user = db.relationship('User', backref=db.backref('reviews', lazy=True))
+    
+    @property
+    def display_name(self):
+        """Get display name - use User name if logged in, otherwise reviewer_name"""
+        if self.user:
+            return self.user.email.split('@')[0].title()
+        return self.reviewer_name
+    
+    @property
+    def star_display(self):
+        """Get HTML star display"""
+        full_stars = self.rating
+        empty_stars = 5 - self.rating
+        return '★' * full_stars + '☆' * empty_stars
+    
+    @classmethod
+    def get_product_stats(cls, product_id):
+        """Get review statistics for a product"""
+        reviews = cls.query.filter_by(product_id=product_id, approved=True).all()
+        if not reviews:
+            return {
+                'count': 0,
+                'average_rating': 0,
+                'rating_distribution': {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+            }
+        
+        total_rating = sum(r.rating for r in reviews)
+        average = round(total_rating / len(reviews), 1)
+        
+        # Rating distribution
+        distribution = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        for review in reviews:
+            distribution[review.rating] += 1
+            
+        return {
+            'count': len(reviews),
+            'average_rating': average,
+            'rating_distribution': distribution,
+            'reviews': reviews
+        }
