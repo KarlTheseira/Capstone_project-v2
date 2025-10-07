@@ -64,12 +64,15 @@ app.register_blueprint(payment_bp)
 app.register_blueprint(admin_videos_bp)
 app.register_blueprint(video_bp)
 
-# Initialize sample / generated video assets (safe no-op if already exist)
-try:
-    with app.app_context():
-        init_videos()
-except Exception as e:
-    logging.warning("[video] Initialization skipped or failed: %s", e)
+# Initialize sample / generated video assets unless disabled
+if os.getenv('SKIP_VIDEO_INIT', '').lower() not in ('1','true','yes'):  # opt-out for production
+    try:
+        with app.app_context():
+            init_videos()
+    except Exception as e:
+        logging.warning("[video] Initialization skipped or failed: %s", e)
+else:
+    logging.info("[video] SKIP_VIDEO_INIT set – skipping generated video creation")
 
 # -------------------------------------------------------------
 # Diagnostic Google Drive routes (can be removed in production)
