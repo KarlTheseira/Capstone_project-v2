@@ -53,24 +53,52 @@
     </ul>
   </li>
 
-  <!-- Services Dropdown -->
+  <!-- Corporate & Events -->
   <li class="nav-item dropdown">
-    <a class="nav-link dropdown-toggle" href="#" id="navServices" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-      Services
+    <a class="nav-link dropdown-toggle" href="#" id="navCorp" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+      Corporate &amp; Events
     </a>
-    <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="navServices">
+    <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="navCorp">
       <li><a class="dropdown-item" href="{{ url_for('public.corporate_services') }}">
         <i class="bi bi-briefcase-fill me-2"></i>All Services
       </a></li>
-      <li><hr class="dropdown-divider"></li>
       <li><a class="dropdown-item" href="{{ url_for('public.request_quote') }}">
-        <i class="bi bi-chat-quote me-2"></i>Request a Quote
+        <i class="bi bi-file-text me-2"></i>Request a Quote
+      </a></li>
+      <li><a class="dropdown-item" href="{{ url_for('public.booking_calendar') }}">
+        <i class="bi bi-calendar-check me-2"></i>Book Consultation
+      </a></li>
+      <li><hr class="dropdown-divider"></li>
+      <li><a class="dropdown-item" href="{{ url_for('public.request_quote') }}?service=Wedding Videography">
+        <i class="bi bi-heart-fill me-2"></i>Wedding Videography
+      </a></li>
+      <li><a class="dropdown-item" href="{{ url_for('public.request_quote') }}?service=Commercial Production">
+        <i class="bi bi-camera-video-fill me-2"></i>Commercial Production
+      </a></li>
+      <li><a class="dropdown-item" href="{{ url_for('public.request_quote') }}?service=Event Photography">
+        <i class="bi bi-camera-fill me-2"></i>Event Photography
+      </a></li>
+      <li><a class="dropdown-item" href="{{ url_for('public.request_quote') }}?service=Live Streaming">
+        <i class="bi bi-broadcast me-2"></i>Live Streaming
+      </a></li>
+      <li><a class="dropdown-item" href="{{ url_for('public.request_quote') }}?service=Documentary Production">
+        <i class="bi bi-film me-2"></i>Documentary Production
+      </a></li>
+      <li><a class="dropdown-item" href="{{ url_for('public.request_quote') }}?service=Promotional Videos">
+        <i class="bi bi-megaphone-fill me-2"></i>Promotional Videos
+      </a></li>
+      <li><a class="dropdown-item" href="{{ url_for('public.request_quote') }}?service=Drone Footage">
+        <i class="bi bi-airplane me-2"></i>Drone Footage
+      </a></li>
+      <li><hr class="dropdown-divider"></li>
+      <li><a class="dropdown-item" href="{{ url_for('public.service_packages') }}">
+        <i class="bi bi-box-seam me-2"></i>Service Packages
+      </a></li>
+      <li><a class="dropdown-item" href="{{ url_for('public.portfolio') }}">
+        <i class="bi bi-images me-2"></i>Portfolio
       </a></li>
     </ul>
   </li>
-
-  <!-- Portfolio -->
-  <li class="nav-item"><a class="nav-link" href="{{ url_for('public.portfolio') }}">Portfolio</a></li>
 
   <li class="nav-item"><a class="nav-link" href="{{ url_for('public.about') }}">About</a></li>
   <li class="nav-item"><a class="nav-link" href="{{ url_for('public.contact') }}">Contact</a></li>
@@ -85,9 +113,6 @@
       <ul class="dropdown-menu dropdown-menu-end">
         <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">
           <i class="bi bi-speedometer2 me-2"></i>Dashboard
-        </a></li>
-        <li><a class="dropdown-item" href="{{ url_for('admin.analytics') }}">
-          <i class="bi bi-graph-up me-2"></i>Analytics
         </a></li>
         <li><a class="dropdown-item" href="{{ url_for('admin.admin_orders') }}">
           <i class="bi bi-list-ul me-2"></i>Manage Orders
@@ -172,9 +197,6 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Global Video Handler -->
-    <script src="{{ url_for('static', filename='js/video-handler.js') }}"></script>
     
     <!-- Toast Notification System -->
     <script>

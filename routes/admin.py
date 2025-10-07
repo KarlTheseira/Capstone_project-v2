@@ -1,8 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, abort, jsonify, make_response
 from models import Product, Order, QuoteRequest, ServicePackage, Booking, Analytics, db, CORPORATE_CATEGORIES
 from utils.media import save_media
-from utils.payment_analytics import payment_analytics
-from utils.rate_limiting import rate_limit
 from config import Config
 import json
 import csv
@@ -63,81 +61,8 @@ def login():
 
 @admin_bp.route("/logout")
 def logout():
-    session.pop("admin_logged_in", None)
     session.pop("admin", None)
     return redirect(url_for("admin.login"))
-
-@admin_bp.route('/analytics')
-def analytics():
-    """Payment analytics dashboard"""
-    require_admin()
-    
-    # Get time period from request (default 30 days)
-    days = request.args.get('days', 30, type=int)
-    if days not in [7, 30, 90, 365]:
-        days = 30
-    
-    # Get comprehensive analytics data
-    analytics_data = payment_analytics.get_comprehensive_dashboard(days)
-    
-    return render_template('admin_analytics.html', 
-                         analytics=analytics_data, 
-                         selected_days=days)
-
-@admin_bp.route('/analytics/api')
-@rate_limit('analytics')
-def analytics_api():
-    """API endpoint for analytics data (AJAX)"""
-    require_admin()
-    
-    days = request.args.get('days', 30, type=int)
-    metric = request.args.get('metric', 'comprehensive')
-    
-    if metric == 'revenue':
-        data = payment_analytics.get_revenue_summary(days)
-    elif metric == 'success_rate':
-        data = payment_analytics.get_payment_success_rate(days)
-    elif metric == 'chart_data':
-        data = payment_analytics.get_daily_revenue_chart(days)
-    elif metric == 'products':
-        data = payment_analytics.get_top_products(days)
-    elif metric == 'customers':
-        data = payment_analytics.get_customer_metrics(days)
-    else:
-        data = payment_analytics.get_comprehensive_dashboard(days)
-    
-    return jsonify(data)
-
-@admin_bp.route('/rate-limits')
-def rate_limits():
-    """Rate limiting monitoring dashboard"""
-    require_admin()
-    
-    from utils.rate_limiting import rate_limit_monitor
-    
-    # Get rate limit statistics
-    stats = rate_limit_monitor.get_rate_limit_stats(24)
-    health = rate_limit_monitor.check_system_health()
-    
-    return render_template('admin_rate_limits.html', 
-                         stats=stats, 
-                         health=health)
-
-@admin_bp.route('/rate-limits/api')
-def rate_limits_api():
-    """API endpoint for rate limit monitoring data"""
-    require_admin()
-    
-    from utils.rate_limiting import rate_limit_monitor
-    
-    hours = request.args.get('hours', 24, type=int)
-    
-    data = {
-        'stats': rate_limit_monitor.get_rate_limit_stats(hours),
-        'health': rate_limit_monitor.check_system_health()
-    }
-    
-    return jsonify(data)
 
 @admin_bp.route("/", methods=["GET", "POST"])
 def dashboard():
@@ -282,55 +207,11 @@ def edit_product(product_id):
                          size_options=SIZE_OPTIONS,
                          frame_options=FRAME_OPTIONS)
 
-@admin_bp.route('/analytics')
-def admin_analytics():
-    """Payment analytics dashboard"""
-    if 'admin_logged_in' not in session:
-        return redirect(url_for('admin.admin_login'))
-    
-    # Get time period from request (default 30 days)
-    days = request.args.get('days', 30, type=int)
-    if days not in [7, 30, 90, 365]:
-        days = 30
-    
-    # Get comprehensive analytics data
-    analytics_data = payment_analytics.get_comprehensive_dashboard(days)
-    
-    return render_template('admin_analytics.html', 
-                         analytics=analytics_data, 
-                         selected_days=days)
-
-@admin_bp.route('/analytics/api')
-def admin_analytics_api():
-    """API endpoint for analytics data (AJAX)"""
-    if 'admin_logged_in' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-    
-    days = request.args.get('days', 30, type=int)
-    metric = request.args.get('metric', 'comprehensive')
-    
-    if metric == 'revenue':
-        data = payment_analytics.get_revenue_summary(days)
-    elif metric == 'success_rate':
-        data = payment_analytics.get_payment_success_rate(days)
-    elif metric == 'chart_data':
-        data = payment_analytics.get_daily_revenue_chart(days)
-    elif metric == 'products':
-        data = payment_analytics.get_top_products(days)
-    elif metric == 'customers':
-        data = payment_analytics.get_customer_metrics(days)
-    else:
-        data = payment_analytics.get_comprehensive_dashboard(days)
-    
-    return jsonify(data)
-
-@admin_bp.route('/orders')
+@admin_bp.route("/orders")
 def admin_orders():
-    if 'admin_logged_in' not in session:
-        return redirect(url_for('admin.admin_login'))
-    
+    require_admin()
     orders = Order.query.order_by(Order.created_at.desc()).all()
-    return render_template('admin_orders.html', orders=orders)
+    return render_template("admin_orders.html", orders=orders)
 
 @admin_bp.route("/orders/<int:order_id>", methods=["GET", "POST"])
 def order_detail(order_id):
@@ -469,10 +350,10 @@ def delete_booking(booking_id):
     flash("Booking deleted successfully.", "success")
     return redirect(url_for("admin.bookings"))
 
-# Analytics Routes (Legacy - keeping for compatibility)
+# Analytics Routes
 @admin_bp.route("/api/analytics/<metric>")
-def legacy_analytics_api(metric):
-    """Legacy API endpoint for real-time analytics data"""
+def analytics_api(metric):
+    """API endpoint for real-time analytics data"""
     require_admin()
     
     date_range = request.args.get('range', '30')
